@@ -8,68 +8,96 @@ its preservation requirements or acceptance gates. The
 
 ## How will the work be divided?
 
-Develop one change at a time, give each a focused feature PR, and test compatible
-changes together on an integration branch. A failed experiment can remain a
-documented result without becoming a production feature. Do not make a
-single umbrella PR the upstream delivery path.
+Develop one change at a time. Every feature branch starts from the fork's
+`main`, and every initial feature PR targets `main` in that same fork. No
+feature branches from another feature or from integration. Test compatible
+changes together on a separate integration branch and draft PR in the fork.
+A failed experiment can remain a documented result without becoming a
+production feature. Any later upstream submissions remain separate, focused
+PRs; the aggregate is not an umbrella submission to upstream.
 
-Before the first implementation, record a reproducible baseline from an exact
-upstream commit and isolated fixtures. Include reusable measurement support in
-the first feature PR when it is directly needed. Split that support into its
+Before the first implementation, align the fork's `main` with the intended
+upstream baseline without overwriting fork-only work, then record its exact
+commit and isolated fixtures. Keep unaccepted experimental features out of
+`main`; combining them for testing happens on integration. Include reusable
+measurement support in the first feature PR when it is directly needed. Split
+that support into its
 own PR only if it provides an independently useful developer capability; do not
 open empty placeholder PRs.
 
 | Order | Feature branch | Focus and decision |
 | --- | --- | --- |
 | 1 | `codex/storage-session-refs` | Reduce repeated conversation-history session identifiers and associated indexes. Preserve exact external identities and every retained history row. Include baseline accounting and standalone migration, reversal and query measurements. |
-| 2 | `codex/storage-digest-packing` | Pack canonical digests with exact fallback for other values. Measure its incremental benefit separately from session-reference normalization. Declare a dependency on the first PR if they share the new physical layout. |
+| 2 | `codex/storage-digest-packing` | Pack canonical digests with exact fallback for other values. Implement and measure it against the layout on `main`, independently of session-reference normalization. Measure their combined benefit separately. |
 | 3 | `codex/storage-payload-codec` | Redesign optional per-value compression with bounded decoding and complete reader/writer coverage. Demonstrate search, update, export, mirror and upgrade behavior before enabling the representation. Split reader/recovery support from enablement if the release contract requires it. |
 | 4 | `codex/storage-page-compression` | Evaluate page/VFS compression separately. Start with feasibility, licensing, platform builds and lifecycle evidence. A production implementation PR follows only if those gates pass; do not publish licensed source without redistribution rights. |
 
 These names are reserved by this plan; create each feature branch when its
 iteration begins so that it uses the correct baseline. The metadata work is
 split into two PRs because identifier normalization and digest packing have
-different correctness risks and independently measurable savings. If the
-second change needs the first, retain that dependency explicitly.
+different correctness risks and independently measurable savings. Sharing a
+file or table does not by itself require a dependency between them.
+
+If a feature truly requires shared infrastructure, extract the smallest useful
+prerequisite into its own PR from the fork's `main` to that `main`. After the
+repository owner accepts and merges it, create the dependent feature from the
+updated `main` and establish the new baseline. If that cannot produce a coherent
+standalone change, revise the feature split before implementation. Do not hide
+the dependency by copying prerequisite commits into several PRs or by stacking
+feature branches.
 
 ## What is the integration branch for?
 
-`codex/storage-integration` starts at upstream commit
+The local planning branch `codex/storage-integration` was initially created at
+upstream commit
 `e1fa83ffedb816d0e680d457cc58fa013aa9f94f`. It holds this plan and the dated
 research documents. It contains no application changes from the old
 v0.46.1-based compression prototype.
 
+Before combining the first feature, confirm that the integration branch uses
+the same fork-`main` baseline. If it does not, start a new integration branch
+from the fork's recorded `main` and carry over only these planning documents.
+Preserve the old branch and its measurements rather than rewriting history.
+
 Merge selected, validated feature-branch tips into this branch to build and
 benchmark their combined behavior. A Git branch merge for local aggregate
-testing does not merge or approve a GitHub pull request. Upstream PR merges
-remain the maintainer's decision.
+testing does not merge or approve a GitHub pull request. Merging PRs into the
+fork's `main` remains the repository owner's decision; upstream merges remain
+the upstream maintainer's decision.
 
-Keep the integration branch and its eventual draft PR in the fork. The draft
-is a place to inspect the combined diff and record the exact tested revisions;
-it is not a replacement for focused upstream PRs. Publish it when the first
+Keep the integration branch and its eventual draft PR in the fork, also
+targeting the fork's `main`. The draft is a place to inspect the combined diff
+and record the exact tested revisions. Keep it a testing PR rather than the
+route for merging all experiments into `main`. Publish it when the first
 feature provides a useful aggregate to review. Keep its description aligned
 with the current contents and clearly identify experimental features.
 
-Feature branches start from the recorded upstream base or from a declared
-feature dependency. **Never start a feature from the integration branch.**
-Otherwise the feature PR inherits unrelated work and cannot be reviewed or
-accepted independently. Planning documents on the integration branch are not
-a runtime dependency and need not be copied into every feature PR.
+**Never start a feature from another feature or the integration branch, and
+never merge integration back into a feature.** This keeps the feature's PR
+independently reviewable. Planning documents on integration are not a runtime
+dependency and need not be copied into every feature PR.
 
-Independent PRs target upstream `main`. For a genuinely dependent change,
-develop on the preceding feature branch and identify that dependency. While
-the prerequisite is unmerged, use a stacked comparison in the fork or wait to
-submit upstream until the prerequisite lands. Preserve the focused diff when
-moving to the accepted upstream base. Do not silently include earlier pending
-features in a PR described as standalone.
+If an integration conflict reveals a feature bug or a necessary compatibility
+change, fix and validate it on the responsible feature branch before combining
+the updated tip. Keep unavoidable conflict-resolution changes visible and
+reviewed on integration. A feature must still work against `main` by itself;
+integration-only fixes cannot conceal a broken standalone PR.
 
-Record the upstream base, feature tips and integration commit for each result.
+Record the fork-`main` base, feature tips and integration commit for each result.
 After a feature changes, its old measurements do not validate the new aggregate.
-If upstream squash-merges a feature, use the accepted upstream implementation
-in subsequent integration cycles rather than applying the experimental copy
-again. When branch ancestry becomes confusing, create a new numbered
-integration branch from the new upstream base and preserve the old tested
-branch. Avoid rewriting published history merely to keep one branch name.
+When a feature is accepted into the fork or upstream, use that accepted
+implementation in subsequent baselines rather than applying the experimental
+copy again. If ancestry becomes confusing after a squash merge, start a new
+numbered integration branch from the updated fork `main` and preserve the old
+tested branch. Avoid rewriting published history merely to keep one branch
+name.
+
+A small fork PR does not guarantee a small upstream PR: the fork's `main` may
+contain accepted work that upstream does not have. Before upstream submission,
+land required prerequisites upstream first or isolate the feature's changes on
+an appropriate upstream base. Inspect the actual upstream comparison. Fork
+acceptance is not upstream acceptance, and an unrelated prerequisite must not
+silently enter the submitted diff.
 
 ## Which combinations should be tested?
 
@@ -83,9 +111,12 @@ Measure these configurations from equivalent isolated starting fixtures:
 
 | Configuration | What it establishes |
 | --- | --- |
-| Baseline | Current upstream behavior, including existing deduplication and search indexes. |
+| Baseline | Recorded fork `main`, including the intended upstream deduplication and search improvements. |
 | Baseline plus session references | Standalone saving and cost of the first metadata change. |
-| Metadata plus digest packing | Incremental digest benefit and combined metadata behavior. If independent, also measure digest packing alone. |
+| Baseline plus digest packing | Standalone saving and cost of the second metadata change. |
+| Baseline plus payload codec | Standalone codec behavior and costs without either metadata change. |
+| Baseline plus page compression | Standalone page/VFS behavior and costs without other experiments. |
+| Metadata plus digest packing | Incremental digest benefit and combined metadata behavior. |
 | Metadata plus payload codec | Benefit and cost of individual compressed values after metadata changes. |
 | Metadata plus page compression | Alternative whole-storage representation without precompressing payloads. |
 | Metadata plus both compression layers | Optional comparison only after both implementations independently pass. Include this combination in the primary aggregate only if it proves worthwhile and compatible. |
@@ -97,8 +128,9 @@ from different baselines must not be added together.
 
 ## What happens in each iteration?
 
-1. Confirm the exact upstream base, applicable project guides, feature scope
-   and dependencies. Preserve the dated source-research snapshot; recheck
+1. Confirm the exact fork-`main` base, applicable project guides and standalone
+   feature scope. Resolve genuine prerequisites through the separate process
+   above. Preserve the dated source-research snapshot; recheck
    relevant upstream changes before relying on its status claims.
 2. Capture baseline storage and performance on isolated scratch fixtures.
    Preserve the original inputs and identify the fixture and configuration in
@@ -109,23 +141,28 @@ from different baselines must not be added together.
    behavior, including all relevant concern-matrix requirements.
 4. Run relevant project checks and standalone benchmarks. After Go changes,
    run formatting and vet as the repository requires. Compare against the
-   baseline or declared prerequisite using the same fixtures and conditions.
+   recorded `main` baseline using the same fixtures and conditions.
 5. Review adversarially and resolve material findings. Prepare the focused PR
-   with its benefit, limits and dependency clearly stated. Follow the project's
-   summary-only PR format; retain detailed validation in the evidence record.
+   in the fork, targeting its `main`, with the benefit and limits clearly
+   stated. Follow the project's summary-only PR format; retain detailed
+   validation in the evidence record.
 6. Combine the reviewed feature tip with compatible work on the integration
    branch. Rerun the affected checks plus cross-feature migration, recovery,
    search/export, mirror and concurrency checks. Record the exact aggregate
    commit and incremental as well as total space and performance results.
-7. Decide whether the measured result is ready for upstream review, needs
-   another iteration or should remain experimental. Start the next feature
-   only after documenting that outcome and any dependency it introduces.
+7. Review the result in the fork and decide whether it needs another iteration,
+   should remain experimental or is ready for a separate upstream proposal.
+   Start the next feature from `main` after documenting that outcome. Readiness
+   for the next iteration does not require merging the current PR into `main`.
 
 Passing each PR separately does not prove the combination is safe. Integration
 coverage must include sequential upgrades from older layouts, fresh archives,
-partial/interrupted migrations and reversal in dependency order. A configuration
-that cannot support a particular reversal order must refuse it clearly before
-mutating data. Preserve logical history and export identities throughout.
+partial/interrupted migrations and reversal in dependency order. Allocate
+compatible migration identities and test independent changes in both
+application orders; two PRs working alone must not collide when combined. A
+configuration that cannot support a particular reversal order must refuse it
+clearly before mutating data. Preserve logical history and export identities
+throughout.
 
 All builds, migrations and benchmarks use scratch data. The integration branch
 is a test candidate, not an instruction to replace the installed application or

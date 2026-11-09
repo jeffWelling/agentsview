@@ -6,9 +6,11 @@ The [source concern matrix](database-compression-concerns.md) records the issue
 and pull request evidence, including historical fixes and unresolved limits.
 
 The [delivery plan](database-compression-delivery.md) records the agreed
-2026-11-09 workflow: separate feature PRs, sequential development and an
-integration branch for combined validation. Agreement to investigate each
-approach does not establish that each should ship or that both compression
+2026-11-09 workflow: each feature branches from the fork's `main` and opens a
+PR back to that `main`, with sequential development and a separate integration
+branch for combined validation. Features do not branch from one another.
+Agreement to investigate each approach does not establish that each should ship
+or that both compression
 layers should be enabled together.
 
 ## What should we propose first?
