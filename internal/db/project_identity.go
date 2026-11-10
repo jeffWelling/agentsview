@@ -322,7 +322,7 @@ func (db *DB) CopyArchiveIdentityFrom(ctx context.Context, sourcePath string) er
 		_, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE identity_source")
 	}()
 
-	if err := validateAttachedArchiveFormat(ctx, conn, "identity_source"); err != nil {
+	if err := validateAttachedConversationSource(ctx, conn, "identity_source"); err != nil {
 		return fmt.Errorf("validating archive identity source: %w", err)
 	}
 

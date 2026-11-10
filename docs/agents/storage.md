@@ -306,8 +306,10 @@ Fresh rebuilds copy the format policy with archive identity before any message
 write, then resolve destination references from logical session IDs. Reference
 numbers are local storage details and must never be copied across generations.
 Attached sources receive the same format metadata and version checks as normal
-opens before their state is copied. Cold archives remain cold. Their first
-export creates projections through the
+opens before their state is copied. Conversion and preservation copies also
+refuse physical message rows whose session mapping is missing; they retain the
+original rows for recovery. Cold archives remain cold. Their first export
+creates projections through the
 same normalized write path. Rebuilds still get new database generations and
 revision counters, as specified by the conversation-export contract above.
 

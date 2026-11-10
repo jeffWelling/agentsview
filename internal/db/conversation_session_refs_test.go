@@ -485,3 +485,39 @@ func TestConversationSessionRefsRejectsSchemaExtensions(t *testing.T) {
 		}
 	}
 }
+
+func TestConversationSessionRefsRefusesMissingMapping(t *testing.T) {
+	ctx := t.Context()
+	d := testDB(t)
+	insertSession(t, d, "retained", "sample")
+	insertMessages(t, d, Message{SessionID: "retained", Role: "assistant", Content: "Retained text"})
+	_, err := d.ExportConversationChanges(ctx, ConversationExportOptions{})
+	require.NoError(t, err)
+	_, err = d.SetConversationSessionRefs(ctx, true)
+	require.NoError(t, err)
+	// Model an external importer that bypasses foreign-key enforcement.
+	_, err = d.getWriter().ExecContext(ctx, `PRAGMA foreign_keys=OFF; DELETE FROM conversation_session_refs; PRAGMA foreign_keys=ON`)
+	require.NoError(t, err)
+	var physical, logical int
+	require.NoError(t, d.Reader().QueryRow(ctx, `SELECT COUNT(*) FROM conversation_message_refs`).Scan(&physical))
+	require.NoError(t, d.Reader().QueryRow(ctx, `SELECT COUNT(*) FROM conversation_messages`).Scan(&logical))
+	require.Equal(t, 1, physical)
+	require.Zero(t, logical, "the logical view cannot see the orphaned physical history")
+	_, err = d.SetConversationSessionRefs(ctx, false)
+	require.ErrorContains(t, err, "missing their session mapping")
+	require.NoError(t, d.Reader().QueryRow(ctx, `SELECT COUNT(*) FROM conversation_message_refs`).Scan(&physical))
+	assert.Equal(t, 1, physical, "refusal must retain the unreadable physical row for recovery")
+	var mode string
+	require.NoError(t, d.Reader().QueryRow(ctx, `SELECT value FROM archive_metadata WHERE key='conversation_session_refs'`).Scan(&mode))
+	assert.Equal(t, "v1", mode)
+	dest := testDB(t)
+	before, state := sessionRefSnapshot(ctx, t, dest), sessionRefArchiveState(ctx, t, dest)
+	require.ErrorContains(t, dest.CopyArchiveIdentityFrom(ctx, d.Path()), "missing their session mapping")
+	_, err = dest.CopyOrphanedDataFrom(ctx, d.Path())
+	require.ErrorContains(t, err, "missing their session mapping")
+	_, err = dest.CopyTrashedDataFrom(ctx, d.Path())
+	require.ErrorContains(t, err, "missing their session mapping")
+	require.ErrorContains(t, dest.CopySessionMetadataFrom(ctx, d.Path()), "missing their session mapping")
+	assert.Equal(t, before, sessionRefSnapshot(ctx, t, dest))
+	assert.Equal(t, state, sessionRefArchiveState(ctx, t, dest))
+}
