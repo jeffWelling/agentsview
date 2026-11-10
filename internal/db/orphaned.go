@@ -1748,7 +1748,6 @@ func (d *DB) CopySessionMetadataFrom(
 				'usage_change_revision',
 				'usage_pricing_revision',
 				'conversation_publication_revision',
-				'conversation_digest_packing',
 				'worktree_mapping_publication_revision'
 			)
 			AND key NOT GLOB 'remote_import_data_version:*'

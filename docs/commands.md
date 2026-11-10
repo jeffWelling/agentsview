@@ -987,12 +987,14 @@ This is a storage-layout change; it does not compress message bodies or digests.
 Stop the local daemon and close other direct database clients before running
 this command. Keep a verified backup and a compatible binary available. Once
 converted, older builds refuse the archive's storage version. Restore text keys
-successfully before installing an ordinary update or using an older binary.
+successfully before using a build without this format. If digest packing is
+also enabled, follow the [combined-format reversal](#reversing-combined-storage-formats)
+instructions before returning to an ordinary build.
 
 ```bash
 agentsview db session-refs --yes
 agentsview db compact --keep-backup --yes
-# Restore ordinary storage before switching binaries:
+# Restore this format before switching to a build without session references:
 agentsview db session-refs --restore-text --yes
 ```
 
@@ -1046,6 +1048,23 @@ message identities, revisions, cursors and archive-only mode are preserved.
 Maintenance requires a current archive and performs no schema upgrades,
 identity adoption or startup backfills. Finish a required normal upgrade first.
 See [storage maintenance](/docs/data/#pack-conversation-digests).
+
+### Reversing combined storage formats
+
+Use a build that supports every format active in the archive. If both session
+references and digest packing are enabled, stop the daemon and close other
+database clients, then run both reversals with the combined build:
+
+```bash
+agentsview db session-refs --restore-text --yes
+agentsview db pack-digests --unpack
+```
+
+Either order is supported. Finish both before returning to ordinary AgentsView;
+each command removes only its own compatibility flag. A standalone feature
+build also rejects the other feature's flag, so reverse any unsupported format
+before switching between feature builds. Interrupted reversal requires a build
+supporting all remaining flags. Compaction is separate from format reversal.
 
 ### `agentsview db compact`
 

@@ -223,6 +223,9 @@ packed value is decoded. Interrupted reversal keeps the fence and can be rerun.
 Plain SQLite tools see BLOBs while packing is enabled; application reads and
 exports return the original digest strings. See the
 [command reference](/docs/commands/#agentsview-db-pack-digests).
+If session references are also enabled, use a combined build and complete
+[both reversals](/docs/commands/#reversing-combined-storage-formats) before
+returning to ordinary AgentsView.
 
 ### Remove archived images
 
