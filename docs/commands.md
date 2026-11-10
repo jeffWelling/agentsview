@@ -976,6 +976,45 @@ the naming rules and preservation guarantees.
 
 ______________________________________________________________________
 
+### `agentsview db session-refs`
+
+This opt-in format stores each conversation-history session identifier once,
+then uses integer references in message history and its indexes. Exported
+session and message IDs, stored text, deletion history, revisions, and existing
+cursors stay unchanged. The session-change journal keeps its text identifiers.
+This is a storage-layout change; it does not compress message bodies or digests.
+
+Stop the local daemon and close other direct database clients before running
+this command. Keep a verified backup and a compatible binary available. Once
+converted, older builds refuse the archive's storage version. Restore text keys
+successfully before installing an ordinary update or using an older binary.
+
+```bash
+agentsview db session-refs --yes
+agentsview db compact --keep-backup --yes
+# Restore ordinary storage before switching binaries:
+agentsview db session-refs --restore-text --yes
+```
+
+The command takes exclusive local writer ownership and does not start sync.
+It requires an archive whose normal schema upgrade has already completed.
+Conversion copies history in batches, checks every logical field, and switches
+representations in one transaction. An interruption before that switch leaves
+the original representation authoritative; repeating the command restarts the
+staged copy. Startup never converts existing history automatically.
+
+Allow enough free disk space for a second copy of conversation history, its
+indexes, and SQLite's write-ahead log. Conversion frees pages inside the file;
+`db compact` reclaims those pages separately. Integer references add a lookup to
+history reads, so savings and query performance depend on session sizes and
+retained deletion history. This command does not promise a fixed savings ratio.
+
+Use `--format json --yes` for a report containing the row count, selected format,
+and whether a conversion occurred. Repeating an already-applied selection does
+not rewrite the history. A full archive rebuild retains the selected format.
+
+______________________________________________________________________
+
 ### `agentsview db compact`
 
 Reclaim unused space in the local SQLite archive. The command writes and checks

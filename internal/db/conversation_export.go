@@ -234,7 +234,7 @@ func conversationArchiveIdentity(ctx context.Context, tx *sql.Tx) (string, strin
 	for _, table := range []string{"conversation_messages", "conversation_session_changes"} {
 		var present bool
 		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(
-			SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?
+			SELECT 1 FROM sqlite_master WHERE type IN ('table','view') AND name = ?
 		)`, table).Scan(&present); err != nil {
 			return "", "", fmt.Errorf("checking conversation export schema: %w", err)
 		}
@@ -554,7 +554,7 @@ func projectConversationMessagesTx(tx transactionQueries, sessionID string, msgs
 				// A native ID can restore its sole tombstone, but a reused source
 				// ID cannot identify which occurrence survived a replacement.
 				if !replace {
-					if _, err := tx.Exec(`UPDATE conversation_messages SET gap='identity_ambiguous' WHERE session_id=? AND source_id=? AND removed=0`, sessionID, row.sourceID); err != nil {
+					if _, err := (conversationWriteQueries{tx}).Update(`gap='identity_ambiguous'`, `session_id=? AND source_id=? AND removed=0`, sessionID, row.sourceID); err != nil {
 						return err
 					}
 				}
@@ -578,7 +578,7 @@ func projectConversationMessagesTx(tx transactionQueries, sessionID string, msgs
 	}
 	for _, row := range old {
 		if !retained[row.MessageID] {
-			if _, err := tx.Exec(`UPDATE conversation_messages SET deleted = 1, removed = 1, body = NULL WHERE session_id = ? AND message_id = ?`, sessionID, row.MessageID); err != nil {
+			if _, err := (conversationWriteQueries{tx}).Update(`deleted=1,removed=1,body=NULL`, `session_id=? AND message_id=?`, sessionID, row.MessageID); err != nil {
 				return err
 			}
 		}
@@ -601,6 +601,27 @@ func putConversationRowsTx(tx transactionQueries, rows []conversationRow, fresh 
 	if len(rows) == 0 {
 		return nil
 	}
+	var refs bool
+	if err := tx.QueryRow(conversationRefsActiveSQL).Scan(&refs); err != nil {
+		return err
+	}
+	sessionRefs := make(map[string]int64)
+	if refs {
+		for _, row := range rows {
+			if _, ok := sessionRefs[row.SessionID]; ok {
+				continue
+			}
+			if _, err := tx.Exec(`INSERT OR IGNORE INTO conversation_session_refs(session_id) VALUES(?)`, row.SessionID); err != nil {
+				return err
+			}
+			var ref int64
+			if err := tx.QueryRow(`SELECT session_ref FROM conversation_session_refs WHERE session_id=?`, row.SessionID).Scan(&ref); err != nil {
+				return err
+			}
+			sessionRefs[row.SessionID] = ref
+		}
+	}
+
 	var revision int64
 	if fresh {
 		if err := tx.QueryRow(`INSERT INTO archive_metadata(key,value) VALUES(?,CAST(? AS TEXT))
@@ -624,7 +645,11 @@ func putConversationRowsTx(tx transactionQueries, rows []conversationRow, fresh 
 				rev = revision + int64(start+i) + 1
 			}
 			// Text stays in messages; a NULL body also retires any copy an older version stored.
-			args = append(args, row.SessionID, row.MessageID, row.Ordinal, row.Role, row.Timestamp, row.sourceID, nil, row.Digest, row.TextBytes, row.Gap, row.visibleDigest, row.visibleTextBytes, row.visibleGap, row.SessionID, rev)
+			var sessionKey any = row.SessionID
+			if refs {
+				sessionKey = sessionRefs[row.SessionID]
+			}
+			args = append(args, sessionKey, row.MessageID, row.Ordinal, row.Role, row.Timestamp, row.sourceID, nil, row.Digest, row.TextBytes, row.Gap, row.visibleDigest, row.visibleTextBytes, row.visibleGap, row.SessionID, rev)
 		}
 		sb.WriteString(` ON CONFLICT(session_id,message_id) DO UPDATE SET ordinal=excluded.ordinal,role=excluded.role,timestamp=excluded.timestamp,source_id=excluded.source_id,
 		body=NULL,digest=excluded.digest,text_bytes=excluded.text_bytes,gap=excluded.gap,
@@ -632,7 +657,12 @@ func putConversationRowsTx(tx transactionQueries, rows []conversationRow, fresh 
 		WHERE ordinal IS NOT excluded.ordinal OR role IS NOT excluded.role OR timestamp IS NOT excluded.timestamp OR source_id IS NOT excluded.source_id
 		OR visible_digest IS NOT excluded.visible_digest OR visible_text_bytes IS NOT excluded.visible_text_bytes OR visible_gap IS NOT excluded.visible_gap
 		OR digest IS NOT excluded.digest OR text_bytes IS NOT excluded.text_bytes OR gap IS NOT excluded.gap OR deleted IS NOT excluded.deleted OR removed != 0`)
-		if _, err := tx.Exec(sb.String(), args...); err != nil {
+		query := sb.String()
+		if refs {
+			query = strings.Replace(query, "INSERT INTO conversation_messages", "INSERT INTO conversation_message_refs", 1)
+			query = strings.ReplaceAll(query, "session_id", "session_ref")
+		}
+		if _, err := tx.Exec(query, args...); err != nil {
 			return err
 		}
 	}
@@ -658,7 +688,7 @@ func putConversationSessionChangeTx(tx transactionQueries, sessionID, gap string
 }
 
 func clearUsageOnlyConversationTx(tx transactionQueries, sessionID string) error {
-	if _, err := tx.Exec(`UPDATE conversation_messages SET body=NULL,digest='',text_bytes=0,gap='archive_content_excluded',visible_digest='',visible_text_bytes=0,visible_gap='archive_content_excluded' WHERE session_id=? AND removed=0`, sessionID); err != nil {
+	if _, err := (conversationWriteQueries{tx}).Update(`body=NULL,digest='',text_bytes=0,gap='archive_content_excluded',visible_digest='',visible_text_bytes=0,visible_gap='archive_content_excluded'`, `session_id=? AND removed=0`, sessionID); err != nil {
 		return err
 	}
 	var deleted bool

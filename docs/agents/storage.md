@@ -274,6 +274,43 @@ including the shared Codex parser. Retained sources that cannot be reparsed keep
 their content and classification gaps; export itself never reads the original
 source.
 
+### Opt-in conversation session references
+
+`db session-refs` normalizes repeated session identifiers in conversation
+message history. Its reverse command, `--restore-text`, restores the ordinary
+layout. The `conversation_session_refs` metadata key (`v1`) and `1 << 23`
+storage-version flag must agree. Builds without this format reject the flag;
+unknown modes fail closed. Parser versions and archive-only mode stay distinct.
+
+In this format, `conversation_message_refs` stores the 16 original logical
+fields with an integer `session_ref` in place of the text session key.
+`conversation_session_refs` maps those references to exact opaque text IDs.
+References have no lifetime dependency on `sessions`: hard-deleted message
+history retains its identity. The read-only `conversation_messages` view
+restores the original logical columns. Application writes target the physical
+table through explicit update predicates and mapped inserts; there are no
+`INSTEAD OF` write triggers. The session-change journal stays in its ordinary
+text-keyed layout.
+
+Conversion holds the archive writer mutex and the CLI's process-level writer
+ownership. It rejects unknown physical columns, indexes, or triggers before
+replacing a table. It copies a staging table in 512-row rowid ranges, verifies
+both directions across every field, and cuts over tables, indexes, triggers,
+metadata, and the compatibility flag in one transaction. It does not use the
+ordinary preservation-copy helpers, which deliberately allocate new revisions.
+A format conversion preserves database identity, publication counters, opaque
+message IDs, NULL versus empty values, and all revisions. Interrupted staging
+is discarded on the next explicit attempt; normal startup does no conversion.
+
+Fresh rebuilds copy the format policy with archive identity before any message
+write, then resolve destination references from logical session IDs. Reference
+numbers are local storage details and must never be copied across generations.
+Attached sources receive the same format metadata and version checks as normal
+opens before their state is copied. Cold archives remain cold. Their first
+export creates projections through the
+same normalized write path. Rebuilds still get new database generations and
+revision counters, as specified by the conversation-export contract above.
+
 ### Claude subagent sources
 
 Joined local subagent writes record contributing transcript paths with the
