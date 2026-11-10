@@ -310,6 +310,32 @@ opens before their state is copied. Cold archives remain cold. Their first
 export creates projections through the
 same normalized write path. Rebuilds still get new database generations and
 revision counters, as specified by the conversation-export contract above.
+### Optional conversation digest packing
+
+`db pack-digests` explicitly opts an archive into 32-byte BLOB storage for exact
+lowercase 64-character hexadecimal `conversation_messages.digest` and
+`visible_digest`. Other TEXT stays byte-identical. Pre-existing non-TEXT values
+are rejected before opt-in. Decode through `conversationDigestReadSQL` for
+logical reads and copy selections; do not cast BLOBs to TEXT. Copies decode the
+source representation and let the destination's triggers choose its format.
+Rebuilds inherit enabled packing before copying rows.
+
+The `conversation_digest_packing` metadata key is `v1` while enabled and
+`unpacking` during reversal. Both require `1 << 24` in `user_version`; bits 21
+and 22 remain reserved for older prototypes. Unsupported flags, unknown modes,
+and marker/flag mismatches fail closed. Revision triggers compare logical
+digests so physical conversion does not advance publication revisions. Restore
+the original triggers and remove the fence only after reversal verifies every
+digest is TEXT. This feature does not change parser versions, identity,
+retention, mirror schemas or startup conversion behavior.
+
+Maintenance owns the archive writer and visits rowids in batches of at most
+256. Cancellation leaves committed batches readable and a rerun resumes by
+rescanning the mixed representation. Readers see transaction snapshots. Keep
+migration, reversal, future writes, both trigger orders, copies, compaction and
+legacy fallback coverage when changing these paths. The synthetic
+`BenchmarkConversationDigestPacking` measures file bytes and logical revision
+reads; its fixture does not predict whole-archive savings.
 
 ### Claude subagent sources
 

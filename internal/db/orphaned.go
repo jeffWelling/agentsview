@@ -85,6 +85,10 @@ func (d *DB) CopyOrphanedDataFromExcluding(
 		)
 	}()
 
+	if err := validateAttachedConversationSource(ctx, conn, "old_db"); err != nil {
+		return nil, fmt.Errorf("validating conversation source: %w", err)
+	}
+
 	sourceVersion, err := prepareCodexSessionIDMap(ctx, conn, true)
 	if err != nil {
 		return nil, err
@@ -310,6 +314,10 @@ func (d *DB) CopyTrashedDataFrom(ctx context.Context, sourcePath string) ([]stri
 			ctx, conn, "DETACH DATABASE old_db",
 		)
 	}()
+
+	if err := validateAttachedConversationSource(ctx, conn, "old_db"); err != nil {
+		return nil, fmt.Errorf("validating conversation source: %w", err)
+	}
 
 	sourceVersion, err := prepareCodexSessionIDMap(ctx, conn, false)
 	if err != nil {
@@ -1294,7 +1302,7 @@ func (d *DB) CopySessionMetadataFrom(
 		)
 	}()
 
-	if err := validateAttachedArchiveFormat(ctx, conn, "old_db"); err != nil {
+	if err := validateAttachedConversationSource(ctx, conn, "old_db"); err != nil {
 		return fmt.Errorf("validating metadata source: %w", err)
 	}
 
@@ -1733,7 +1741,8 @@ func (d *DB) CopySessionMetadataFrom(
 			FROM old_db.archive_metadata
 			WHERE key NOT IN (
 				'database_id',
- 'conversation_session_refs',
+				'conversation_session_refs',
+				'conversation_digest_packing',
 				'project_identity_publication_revision',
 				'session_deletion_publication_revision',
 				'usage_change_revision',

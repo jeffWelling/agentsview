@@ -9,7 +9,8 @@ import (
 )
 
 const archiveFormatSessionRefs = 1 << 23
-const knownArchiveFormatFlags = archiveFormatSessionRefs
+const archiveFormatDigestPacking = 1 << 24
+const knownArchiveFormatFlags = archiveFormatSessionRefs | archiveFormatDigestPacking
 
 type archiveFormatSpec struct {
 	key   string
@@ -19,6 +20,7 @@ type archiveFormatSpec struct {
 
 var archiveFormatSpecs = []archiveFormatSpec{
 	{"conversation_session_refs", archiveFormatSessionRefs, []string{"v1"}},
+	{"conversation_digest_packing", archiveFormatDigestPacking, []string{"v1", "unpacking"}},
 }
 
 type archiveFormatQuerier interface {

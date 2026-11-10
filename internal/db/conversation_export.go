@@ -95,8 +95,8 @@ type conversationPosition struct {
 	Through    int64  `json:"through,string"`
 }
 
-const conversationChangeColumns = `session_id, message_id, CAST(revision AS TEXT), ordinal,
-	role, NULLIF(timestamp,''), deleted, gap, digest, text_bytes`
+var conversationChangeColumns = `session_id, message_id, CAST(revision AS TEXT), ordinal,
+	role, NULLIF(timestamp,''), deleted, gap, ` + conversationDigestReadSQL("digest", "archive_metadata") + `, text_bytes`
 
 func scanConversationChange(row rowScanner, change *ConversationChange) error {
 	return row.Scan(&change.SessionID, &change.MessageID, &change.Revision,
@@ -395,7 +395,7 @@ type conversationRow struct {
 // conversationRowsFromTx returns the live projection rows at or after
 // fromOrdinal.
 func conversationRowsFromTx(tx transactionQueries, sessionID string, fromOrdinal int) ([]conversationRow, error) {
-	rows, err := tx.Query(`SELECT `+conversationChangeColumns+`, source_id,visible_digest,visible_text_bytes,visible_gap FROM conversation_messages WHERE session_id = ? AND removed = 0 AND ordinal >= ? ORDER BY ordinal`, sessionID, fromOrdinal)
+	rows, err := tx.Query(`SELECT `+conversationChangeColumns+`, source_id,`+conversationDigestReadSQL("visible_digest", "archive_metadata")+`,visible_text_bytes,visible_gap FROM conversation_messages WHERE session_id = ? AND removed = 0 AND ordinal >= ? ORDER BY ordinal`, sessionID, fromOrdinal)
 	if err != nil {
 		return nil, err
 	}
@@ -655,8 +655,8 @@ func putConversationRowsTx(tx transactionQueries, rows []conversationRow, fresh 
 		body=NULL,digest=excluded.digest,text_bytes=excluded.text_bytes,gap=excluded.gap,
 		visible_digest=excluded.visible_digest,visible_text_bytes=excluded.visible_text_bytes,visible_gap=excluded.visible_gap,deleted=excluded.deleted,removed=0
 		WHERE ordinal IS NOT excluded.ordinal OR role IS NOT excluded.role OR timestamp IS NOT excluded.timestamp OR source_id IS NOT excluded.source_id
-		OR visible_digest IS NOT excluded.visible_digest OR visible_text_bytes IS NOT excluded.visible_text_bytes OR visible_gap IS NOT excluded.visible_gap
-		OR digest IS NOT excluded.digest OR text_bytes IS NOT excluded.text_bytes OR gap IS NOT excluded.gap OR deleted IS NOT excluded.deleted OR removed != 0`)
+		OR ` + conversationDigestLogicalSQL("visible_digest") + ` IS NOT ` + conversationDigestLogicalSQL("excluded.visible_digest") + ` OR visible_text_bytes IS NOT excluded.visible_text_bytes OR visible_gap IS NOT excluded.visible_gap
+		OR ` + conversationDigestLogicalSQL("digest") + ` IS NOT ` + conversationDigestLogicalSQL("excluded.digest") + ` OR text_bytes IS NOT excluded.text_bytes OR gap IS NOT excluded.gap OR deleted IS NOT excluded.deleted OR removed != 0`)
 		query := sb.String()
 		if refs {
 			query = strings.Replace(query, "INSERT INTO conversation_messages", "INSERT INTO conversation_message_refs", 1)

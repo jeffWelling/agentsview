@@ -246,6 +246,30 @@ func (db *DB) SetConversationSessionRefs(ctx context.Context, enabled bool) (Con
 	return report, nil
 }
 
+// Explicit copy and conversion boundaries validate physical history. This scan
+// must not run on ordinary startup or once per copied session.
+func validateConversationRefRows(ctx context.Context, q archiveFormatQuerier, schema string) error {
+	var missing bool
+	if err := q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM `+schema+`.conversation_message_refs m LEFT JOIN `+schema+`.conversation_session_refs r ON r.session_ref=m.session_ref WHERE r.session_ref IS NULL)`).Scan(&missing); err != nil {
+		return err
+	}
+	if missing {
+		return errors.New("conversation session-reference rows are missing their session mapping; conversion or copy refused")
+	}
+	return nil
+}
+
+func validateAttachedConversationSource(ctx context.Context, q archiveFormatQuerier, schema string) error {
+	if err := validateAttachedArchiveFormat(ctx, q, schema); err != nil {
+		return err
+	}
+	flags, err := archiveFormatFlagsInSchema(ctx, q, schema)
+	if err != nil || flags&archiveFormatSessionRefs == 0 {
+		return err
+	}
+	return validateConversationRefRows(ctx, q, schema)
+}
+
 // Conversion replaces the physical table. Refuse unrecognized columns or
 // attached schema objects rather than silently discarding extensions at cutover.
 func validateConversationRefLayoutTx(ctx context.Context, tx *sql.Tx, active bool) error {
@@ -253,6 +277,9 @@ func validateConversationRefLayoutTx(ctx context.Context, tx *sql.Tx, active boo
 	if active {
 		table = "conversation_message_refs"
 		columns = strings.Replace(columns, "session_id", "session_ref", 1)
+		if err := validateConversationRefRows(ctx, tx, "main"); err != nil {
+			return err
+		}
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT name FROM pragma_table_info(?) ORDER BY cid`, table)
 	if err != nil {
@@ -282,6 +309,9 @@ func validateConversationRefLayoutTx(ctx context.Context, tx *sql.Tx, active boo
 	}
 	for _, match := range conversationTriggerNames.FindAllStringSubmatch(conversationSchemaSQL+conversationVisibleRevisionSQL, -1) {
 		allowed[match[1]] = true
+	}
+	for _, name := range conversationDigestTriggerNames {
+		allowed[name] = true
 	}
 	rows, err = tx.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE tbl_name=? AND type IN ('index','trigger')`, table)
 	if err != nil {
@@ -397,7 +427,11 @@ func finishConversationRefStageTx(ctx context.Context, tx *sql.Tx, enabled bool)
 			return err
 		}
 	}
-	if _, err := tx.ExecContext(ctx, conversationSessionRefTriggerSQL(conversationSchemaSQL+conversationVisibleRevisionSQL, enabled)); err != nil {
+	mode, err := conversationDigestModeTx(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if err := installConversationDigestTriggers(ctx, tx, mode); err != nil {
 		return err
 	}
 	return writeUserVersion(ctx, tx, version)
