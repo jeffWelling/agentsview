@@ -27,6 +27,7 @@ func newDBCommand() *cobra.Command {
 		Args:    cobra.NoArgs,
 	}
 	cmd.AddCommand(newDBCompactCommand())
+	cmd.AddCommand(newDBSessionRefsCommand())
 	cmd.AddCommand(newDBStripCommand())
 	cmd.AddCommand(newDBMigrateCommand())
 	cmd.AddCommand(newDBAdoptMachineCommand())

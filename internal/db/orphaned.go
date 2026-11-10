@@ -1294,6 +1294,10 @@ func (d *DB) CopySessionMetadataFrom(
 		)
 	}()
 
+	if err := validateAttachedArchiveFormat(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating metadata source: %w", err)
+	}
+
 	// All copied state must resolve old thread rows to the same page.
 	sourceVersion, err := prepareCodexSessionIDMap(ctx, conn, false)
 	if err != nil {
@@ -1729,6 +1733,7 @@ func (d *DB) CopySessionMetadataFrom(
 			FROM old_db.archive_metadata
 			WHERE key NOT IN (
 				'database_id',
+ 'conversation_session_refs',
 				'project_identity_publication_revision',
 				'session_deletion_publication_revision',
 				'usage_change_revision',

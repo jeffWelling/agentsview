@@ -669,7 +669,7 @@ func compactCopiedSessionsForUsageTx(
 	ctx context.Context, tx *sql.Tx, tempIDsTable string,
 ) error {
 	inCopied := ` IN (SELECT id FROM ` + tempIDsTable + `)`
-	if _, err := tx.ExecContext(ctx, `UPDATE conversation_messages SET body=NULL,digest='',text_bytes=0,gap='archive_content_excluded' WHERE session_id`+inCopied); err != nil {
+	if _, err := (conversationWriteQueries{contextTransaction{ctx: ctx, tx: tx}}).Update(`body=NULL,digest='',text_bytes=0,gap='archive_content_excluded'`, `session_id`+inCopied); err != nil {
 		return err
 	}
 	statements := []struct {
