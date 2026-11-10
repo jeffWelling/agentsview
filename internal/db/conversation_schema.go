@@ -234,6 +234,9 @@ func refreshConversationMessagesFromArchiveTx(ctx context.Context, tx *sql.Tx, w
 // same cold or active state. A rebuild takes its source's state from
 // CopyArchiveIdentityFrom before any copy, so a mismatch is a caller bug.
 func copyConversationRowsTx(ctx context.Context, tx *sql.Tx, where, sessionID string) error {
+	if err := validateAttachedArchiveFormat(ctx, tx, "old_db"); err != nil {
+		return err
+	}
 	var initialized bool
 	if oldDBHasTable(ctx, tx, "conversation_messages") {
 		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM old_db.archive_metadata WHERE key=?)`, conversationExportInitializedKey).Scan(&initialized); err != nil {
@@ -329,6 +332,9 @@ func conversationMessagesTx(ctx context.Context, tx *sql.Tx, sessionID string) (
 // Rebuilt archives preserve opaque IDs from the old projection before matching
 // freshly parsed messages. The new database keeps its own publication counter.
 func reconcileConversationResyncTx(ctx context.Context, tx *sql.Tx, usageOnly bool) error {
+	if err := validateAttachedArchiveFormat(ctx, tx, "old_db"); err != nil {
+		return err
+	}
 	if oldDBHasTable(ctx, tx, "conversation_session_changes") {
 		if err := copyConversationSessionStatesTx(ctx, tx,
 			"session_id IN (SELECT source_id FROM _codex_page_metadata)",

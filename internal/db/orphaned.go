@@ -1294,6 +1294,10 @@ func (d *DB) CopySessionMetadataFrom(
 		)
 	}()
 
+	if err := validateAttachedArchiveFormat(ctx, conn, "old_db"); err != nil {
+		return err
+	}
+
 	// All copied state must resolve old thread rows to the same page.
 	sourceVersion, err := prepareCodexSessionIDMap(ctx, conn, false)
 	if err != nil {
