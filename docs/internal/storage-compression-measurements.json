@@ -1,0 +1,709 @@
+{
+  "measured_at": "2026-11-10",
+  "platform": "darwin/arm64",
+  "cpu": "Apple M3 Max",
+  "go": "1.27.3",
+  "sqlite": "3.53.4",
+  "benchmark": "BenchmarkStorageFormatsIntegration",
+  "source": "internal/db/storage_formats_integration_bench_test.go",
+  "fixture": {
+    "history_rows": 10000,
+    "sessions": 100,
+    "live_messages": 500,
+    "tombstones": 9500,
+    "canonical_digest_pairs": 9000
+  },
+  "method": "Three one-second samples per operation, sequential main-before/integration/main-after runs; compacted main-file bytes after checked WAL checkpoint. The untouched-main control uses identical fixture and timed bodies through a plain-only benchmark overlay and its original column projection.",
+  "limits": [
+    "Warm cache, synthetic data and an uncontrolled host; no production-size or cold-cache prediction.",
+    "Integrated plain means both features disabled in the candidate, not untouched main.",
+    "Setup conversion/reversal times are one observation per fixture repeated in child samples, not independent throughput samples.",
+    "Go B/op is allocation volume, not peak RSS or native SQLite memory.",
+    "Row batching is not a strict byte, WAL or peak-disk bound."
+  ],
+  "runs": [
+    {
+      "label": "main_before",
+      "revision": "4bf12972e19486a59788692b0c832fff0002668e",
+      "samples": [
+        {
+          "variant": "plain",
+          "operation": "revision_page",
+          "iterations": 15738,
+          "metrics": {
+            "ns/op": 76253.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 33069.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "revision_page",
+          "iterations": 15874,
+          "metrics": {
+            "ns/op": 76001.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 33066.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "revision_page",
+          "iterations": 15777,
+          "metrics": {
+            "ns/op": 75795.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 33065.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7440,
+          "metrics": {
+            "ns/op": 146262.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 56020.0,
+            "allocs/op": 477.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "unchanged_reconciliation",
+          "iterations": 8056,
+          "metrics": {
+            "ns/op": 155589.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 56022.0,
+            "allocs/op": 477.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7228,
+          "metrics": {
+            "ns/op": 161024.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 56016.0,
+            "allocs/op": 477.0
+          }
+        }
+      ],
+      "medians": {
+        "plain/revision_page": {
+          "ns/op": 76001.0,
+          "archive-bytes": 4526080.0,
+          "setup-convert-ms": 0.0,
+          "setup-reverse-ms": 0.0,
+          "B/op": 33066.0,
+          "allocs/op": 620.0
+        },
+        "plain/unchanged_reconciliation": {
+          "ns/op": 155589.0,
+          "archive-bytes": 4526080.0,
+          "setup-convert-ms": 0.0,
+          "setup-reverse-ms": 0.0,
+          "B/op": 56020.0,
+          "allocs/op": 477.0
+        }
+      }
+    },
+    {
+      "label": "integration",
+      "revision": "f7ca457e5b77d24bf64dc2fe3ea2002f5a47e1ab",
+      "samples": [
+        {
+          "variant": "plain",
+          "operation": "revision_page",
+          "iterations": 15418,
+          "metrics": {
+            "ns/op": 77828.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 33071.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "revision_page",
+          "iterations": 15481,
+          "metrics": {
+            "ns/op": 77348.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 33064.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "revision_page",
+          "iterations": 15566,
+          "metrics": {
+            "ns/op": 77039.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 33064.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6926,
+          "metrics": {
+            "ns/op": 158292.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 61975.0,
+            "allocs/op": 498.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7720,
+          "metrics": {
+            "ns/op": 152841.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 61969.0,
+            "allocs/op": 498.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7653,
+          "metrics": {
+            "ns/op": 153615.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 61966.0,
+            "allocs/op": 498.0
+          }
+        },
+        {
+          "variant": "refs_only",
+          "operation": "revision_page",
+          "iterations": 15328,
+          "metrics": {
+            "ns/op": 78458.0,
+            "archive-bytes": 4087808.0,
+            "setup-convert-ms": 49.04,
+            "setup-reverse-ms": 48.71,
+            "B/op": 33065.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "refs_only",
+          "operation": "revision_page",
+          "iterations": 15375,
+          "metrics": {
+            "ns/op": 78074.0,
+            "archive-bytes": 4087808.0,
+            "setup-convert-ms": 49.04,
+            "setup-reverse-ms": 48.71,
+            "B/op": 33064.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "refs_only",
+          "operation": "revision_page",
+          "iterations": 15354,
+          "metrics": {
+            "ns/op": 78218.0,
+            "archive-bytes": 4087808.0,
+            "setup-convert-ms": 49.04,
+            "setup-reverse-ms": 48.71,
+            "B/op": 33064.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "refs_only",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6924,
+          "metrics": {
+            "ns/op": 164657.0,
+            "archive-bytes": 4087808.0,
+            "setup-convert-ms": 49.04,
+            "setup-reverse-ms": 48.71,
+            "B/op": 68173.0,
+            "allocs/op": 523.0
+          }
+        },
+        {
+          "variant": "refs_only",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7508,
+          "metrics": {
+            "ns/op": 160153.0,
+            "archive-bytes": 4087808.0,
+            "setup-convert-ms": 49.04,
+            "setup-reverse-ms": 48.71,
+            "B/op": 68158.0,
+            "allocs/op": 523.0
+          }
+        },
+        {
+          "variant": "refs_only",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7342,
+          "metrics": {
+            "ns/op": 165253.0,
+            "archive-bytes": 4087808.0,
+            "setup-convert-ms": 49.04,
+            "setup-reverse-ms": 48.71,
+            "B/op": 68171.0,
+            "allocs/op": 523.0
+          }
+        },
+        {
+          "variant": "digests_only",
+          "operation": "revision_page",
+          "iterations": 12991,
+          "metrics": {
+            "ns/op": 92331.0,
+            "archive-bytes": 3891200.0,
+            "setup-convert-ms": 57.52,
+            "setup-reverse-ms": 33.41,
+            "B/op": 33065.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "digests_only",
+          "operation": "revision_page",
+          "iterations": 12951,
+          "metrics": {
+            "ns/op": 92574.0,
+            "archive-bytes": 3891200.0,
+            "setup-convert-ms": 57.52,
+            "setup-reverse-ms": 33.41,
+            "B/op": 33065.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "digests_only",
+          "operation": "revision_page",
+          "iterations": 13009,
+          "metrics": {
+            "ns/op": 92175.0,
+            "archive-bytes": 3891200.0,
+            "setup-convert-ms": 57.52,
+            "setup-reverse-ms": 33.41,
+            "B/op": 33065.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "digests_only",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6675,
+          "metrics": {
+            "ns/op": 166832.0,
+            "archive-bytes": 3891200.0,
+            "setup-convert-ms": 57.52,
+            "setup-reverse-ms": 33.41,
+            "B/op": 61967.0,
+            "allocs/op": 498.0
+          }
+        },
+        {
+          "variant": "digests_only",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6795,
+          "metrics": {
+            "ns/op": 167794.0,
+            "archive-bytes": 3891200.0,
+            "setup-convert-ms": 57.52,
+            "setup-reverse-ms": 33.41,
+            "B/op": 61973.0,
+            "allocs/op": 498.0
+          }
+        },
+        {
+          "variant": "digests_only",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7090,
+          "metrics": {
+            "ns/op": 167631.0,
+            "archive-bytes": 3891200.0,
+            "setup-convert-ms": 57.52,
+            "setup-reverse-ms": 33.41,
+            "B/op": 61964.0,
+            "allocs/op": 498.0
+          }
+        },
+        {
+          "variant": "refs_then_digests",
+          "operation": "revision_page",
+          "iterations": 12702,
+          "metrics": {
+            "ns/op": 94833.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 110.6,
+            "setup-reverse-ms": 75.32,
+            "B/op": 33064.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "refs_then_digests",
+          "operation": "revision_page",
+          "iterations": 12722,
+          "metrics": {
+            "ns/op": 94915.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 110.6,
+            "setup-reverse-ms": 75.32,
+            "B/op": 33064.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "refs_then_digests",
+          "operation": "revision_page",
+          "iterations": 12732,
+          "metrics": {
+            "ns/op": 94186.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 110.6,
+            "setup-reverse-ms": 75.32,
+            "B/op": 33065.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "refs_then_digests",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6453,
+          "metrics": {
+            "ns/op": 171585.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 110.6,
+            "setup-reverse-ms": 75.32,
+            "B/op": 68166.0,
+            "allocs/op": 523.0
+          }
+        },
+        {
+          "variant": "refs_then_digests",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6349,
+          "metrics": {
+            "ns/op": 179427.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 110.6,
+            "setup-reverse-ms": 75.32,
+            "B/op": 68161.0,
+            "allocs/op": 523.0
+          }
+        },
+        {
+          "variant": "refs_then_digests",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6348,
+          "metrics": {
+            "ns/op": 176902.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 110.6,
+            "setup-reverse-ms": 75.32,
+            "B/op": 68158.0,
+            "allocs/op": 523.0
+          }
+        },
+        {
+          "variant": "digests_then_refs",
+          "operation": "revision_page",
+          "iterations": 12842,
+          "metrics": {
+            "ns/op": 93494.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 114.5,
+            "setup-reverse-ms": 81.63,
+            "B/op": 33064.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "digests_then_refs",
+          "operation": "revision_page",
+          "iterations": 12720,
+          "metrics": {
+            "ns/op": 94212.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 114.5,
+            "setup-reverse-ms": 81.63,
+            "B/op": 33065.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "digests_then_refs",
+          "operation": "revision_page",
+          "iterations": 12795,
+          "metrics": {
+            "ns/op": 93685.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 114.5,
+            "setup-reverse-ms": 81.63,
+            "B/op": 33064.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "digests_then_refs",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6378,
+          "metrics": {
+            "ns/op": 173735.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 114.5,
+            "setup-reverse-ms": 81.63,
+            "B/op": 68165.0,
+            "allocs/op": 523.0
+          }
+        },
+        {
+          "variant": "digests_then_refs",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6873,
+          "metrics": {
+            "ns/op": 172109.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 114.5,
+            "setup-reverse-ms": 81.63,
+            "B/op": 68158.0,
+            "allocs/op": 523.0
+          }
+        },
+        {
+          "variant": "digests_then_refs",
+          "operation": "unchanged_reconciliation",
+          "iterations": 6849,
+          "metrics": {
+            "ns/op": 172271.0,
+            "archive-bytes": 3420160.0,
+            "setup-convert-ms": 114.5,
+            "setup-reverse-ms": 81.63,
+            "B/op": 68162.0,
+            "allocs/op": 523.0
+          }
+        }
+      ],
+      "medians": {
+        "plain/revision_page": {
+          "ns/op": 77348.0,
+          "archive-bytes": 4526080.0,
+          "setup-convert-ms": 0.0,
+          "setup-reverse-ms": 0.0,
+          "B/op": 33064.0,
+          "allocs/op": 620.0
+        },
+        "plain/unchanged_reconciliation": {
+          "ns/op": 153615.0,
+          "archive-bytes": 4526080.0,
+          "setup-convert-ms": 0.0,
+          "setup-reverse-ms": 0.0,
+          "B/op": 61969.0,
+          "allocs/op": 498.0
+        },
+        "refs_only/revision_page": {
+          "ns/op": 78218.0,
+          "archive-bytes": 4087808.0,
+          "setup-convert-ms": 49.04,
+          "setup-reverse-ms": 48.71,
+          "B/op": 33064.0,
+          "allocs/op": 620.0
+        },
+        "refs_only/unchanged_reconciliation": {
+          "ns/op": 164657.0,
+          "archive-bytes": 4087808.0,
+          "setup-convert-ms": 49.04,
+          "setup-reverse-ms": 48.71,
+          "B/op": 68171.0,
+          "allocs/op": 523.0
+        },
+        "digests_only/revision_page": {
+          "ns/op": 92331.0,
+          "archive-bytes": 3891200.0,
+          "setup-convert-ms": 57.52,
+          "setup-reverse-ms": 33.41,
+          "B/op": 33065.0,
+          "allocs/op": 620.0
+        },
+        "digests_only/unchanged_reconciliation": {
+          "ns/op": 167631.0,
+          "archive-bytes": 3891200.0,
+          "setup-convert-ms": 57.52,
+          "setup-reverse-ms": 33.41,
+          "B/op": 61967.0,
+          "allocs/op": 498.0
+        },
+        "refs_then_digests/revision_page": {
+          "ns/op": 94833.0,
+          "archive-bytes": 3420160.0,
+          "setup-convert-ms": 110.6,
+          "setup-reverse-ms": 75.32,
+          "B/op": 33064.0,
+          "allocs/op": 620.0
+        },
+        "refs_then_digests/unchanged_reconciliation": {
+          "ns/op": 176902.0,
+          "archive-bytes": 3420160.0,
+          "setup-convert-ms": 110.6,
+          "setup-reverse-ms": 75.32,
+          "B/op": 68161.0,
+          "allocs/op": 523.0
+        },
+        "digests_then_refs/revision_page": {
+          "ns/op": 93685.0,
+          "archive-bytes": 3420160.0,
+          "setup-convert-ms": 114.5,
+          "setup-reverse-ms": 81.63,
+          "B/op": 33064.0,
+          "allocs/op": 620.0
+        },
+        "digests_then_refs/unchanged_reconciliation": {
+          "ns/op": 172271.0,
+          "archive-bytes": 3420160.0,
+          "setup-convert-ms": 114.5,
+          "setup-reverse-ms": 81.63,
+          "B/op": 68162.0,
+          "allocs/op": 523.0
+        }
+      }
+    },
+    {
+      "label": "main_after",
+      "revision": "4bf12972e19486a59788692b0c832fff0002668e",
+      "samples": [
+        {
+          "variant": "plain",
+          "operation": "revision_page",
+          "iterations": 15370,
+          "metrics": {
+            "ns/op": 78676.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 33071.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "revision_page",
+          "iterations": 15390,
+          "metrics": {
+            "ns/op": 77779.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 33066.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "revision_page",
+          "iterations": 15336,
+          "metrics": {
+            "ns/op": 77810.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 33066.0,
+            "allocs/op": 620.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7284,
+          "metrics": {
+            "ns/op": 165209.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 56024.0,
+            "allocs/op": 477.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7617,
+          "metrics": {
+            "ns/op": 164764.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 56012.0,
+            "allocs/op": 477.0
+          }
+        },
+        {
+          "variant": "plain",
+          "operation": "unchanged_reconciliation",
+          "iterations": 7411,
+          "metrics": {
+            "ns/op": 162098.0,
+            "archive-bytes": 4526080.0,
+            "setup-convert-ms": 0.0,
+            "setup-reverse-ms": 0.0,
+            "B/op": 56023.0,
+            "allocs/op": 477.0
+          }
+        }
+      ],
+      "medians": {
+        "plain/revision_page": {
+          "ns/op": 77810.0,
+          "archive-bytes": 4526080.0,
+          "setup-convert-ms": 0.0,
+          "setup-reverse-ms": 0.0,
+          "B/op": 33066.0,
+          "allocs/op": 620.0
+        },
+        "plain/unchanged_reconciliation": {
+          "ns/op": 164764.0,
+          "archive-bytes": 4526080.0,
+          "setup-convert-ms": 0.0,
+          "setup-reverse-ms": 0.0,
+          "B/op": 56023.0,
+          "allocs/op": 477.0
+        }
+      }
+    }
+  ],
+  "gomaxprocs": 16
+}
