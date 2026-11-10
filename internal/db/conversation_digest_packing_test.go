@@ -271,6 +271,10 @@ func TestDigestPackingArchiveCopiesBothDirections(t *testing.T) {
 				require.NoError(t, err)
 				_, err = destination.CopyOrphanedDataFrom(ctx, source.Path())
 				require.NoError(t, err)
+				require.NoError(t, destination.CopySessionMetadataFrom(ctx, source.Path()))
+				var version int
+				require.NoError(t, destination.getReader().QueryRowContext(ctx, "PRAGMA user_version").Scan(&version))
+				assert.Equal(t, destinationPacked, version&archiveFormatDigestPacking != 0, "late metadata must preserve the chosen destination format")
 				got, err := destination.ExportConversationChanges(ctx, ConversationExportOptions{TextMode: "visible"})
 				require.NoError(t, err)
 				require.Len(t, got.Changes, 1)
@@ -414,4 +418,37 @@ func TestDigestPackingCopyRefusesUnfencedSourceBeforeIdentityChanges(t *testing.
 	var after string
 	require.NoError(t, destination.getReader().QueryRowContext(ctx, `SELECT value FROM archive_metadata WHERE key='archive_id'`).Scan(&after))
 	assert.Equal(t, before, after)
+}
+
+func TestDigestPackingRebuildOfUnpackingSourceStaysPlain(t *testing.T) {
+	ctx := t.Context()
+	source := testDB(t)
+	require.NoError(t, source.UpsertSession(ctx, Session{ID: "orphan", Project: "sample", Machine: "local", Agent: "claude"}))
+	require.NoError(t, source.InsertMessages(ctx, []Message{{SessionID: "orphan", Role: "assistant", Content: "hello", DialogueText: new("abc"), SourceUUID: "native"}}))
+	before, err := source.ExportConversationChanges(ctx, ConversationExportOptions{})
+	require.NoError(t, err)
+	_, err = source.SetConversationDigestPacking(ctx, true)
+	require.NoError(t, err)
+	// Rebuild after the reversal marker commits, before its first data batch.
+	require.NoError(t, source.Update(ctx, func(tx *sql.Tx) error { return setConversationDigestModeTx(ctx, tx, false) }))
+	destination := testDB(t)
+	require.NoError(t, destination.CopyArchiveIdentityFrom(ctx, source.Path()))
+	_, err = destination.CopyOrphanedDataFrom(ctx, source.Path())
+	require.NoError(t, err)
+	require.NoError(t, destination.CopySessionMetadataFrom(ctx, source.Path()))
+	var marker bool
+	require.NoError(t, destination.getReader().QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM archive_metadata WHERE key='conversation_digest_packing')`).Scan(&marker))
+	assert.False(t, marker, "rebuilds inherit the requested plain target, not an interrupted reversal marker")
+	var version int
+	require.NoError(t, destination.getReader().QueryRowContext(ctx, "PRAGMA user_version").Scan(&version))
+	assert.Equal(t, dataVersion, version)
+	page, err := destination.ExportConversationChanges(ctx, ConversationExportOptions{})
+	require.NoError(t, err)
+	require.Len(t, page.Changes, 1)
+	assert.Equal(t, before.Changes[0].MessageID, page.Changes[0].MessageID)
+	assert.Equal(t, helloDigest, page.Changes[0].Digest)
+	require.NoError(t, destination.InsertMessages(ctx, []Message{{SessionID: "orphan", Ordinal: 1, Role: "assistant", Content: "future", SourceUUID: "future"}}))
+	var plain int
+	require.NoError(t, destination.getReader().QueryRowContext(ctx, `SELECT COUNT(*) FROM conversation_messages WHERE typeof(digest)='text'`).Scan(&plain))
+	assert.Equal(t, 2, plain)
 }
