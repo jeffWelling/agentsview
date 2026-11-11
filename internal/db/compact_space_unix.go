@@ -3,7 +3,10 @@
 package db
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/sys/unix"
 )
@@ -34,4 +37,22 @@ func syncDirectory(path string) error {
 	}
 	defer f.Close()
 	return f.Sync()
+}
+
+// Match the pinned SQLite unix VFS search order without changing its global
+// configuration. The maintenance CLI does not alter temp environment variables.
+func messageIndexTempDirectory(ctx context.Context, configured string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	for _, dir := range []string{configured, os.Getenv("SQLITE_TMPDIR"), os.Getenv("TMPDIR"), "/var/tmp", "/usr/tmp", "/tmp", "."} {
+		if dir == "" {
+			continue
+		}
+		info, err := os.Stat(dir)
+		if err == nil && info.IsDir() && unix.Access(dir, unix.W_OK|unix.X_OK) == nil {
+			return filepath.Abs(dir)
+		}
+	}
+	return "", fmt.Errorf("cannot determine a writable SQLite temporary directory")
 }
