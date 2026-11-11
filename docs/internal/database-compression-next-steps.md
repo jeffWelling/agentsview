@@ -22,9 +22,9 @@ Update the integration PR with each completed iteration and its measured scope.
 
 | Order | Branch | Proposed change | Required proof before runtime enablement |
 | --- | --- | --- | --- |
-| 5 | `codex/storage-index-consolidation` | Store one message-order lookup instead of the duplicate `(session_id, ordinal)` trees. | Preserve uniqueness, message row IDs, pins, foreign keys, triggers, old named-index consumers and selective ordered reads. Inspect actual index definitions before migration. A simple DROP breaks older read-only usage extraction; avoid that shortcut. |
+| 5 | `codex/storage-index-consolidation` | Store one message-order lookup instead of the duplicate `(session_id, ordinal)` trees. Fresh archives retain one named UNIQUE index; existing archives require explicit checked compaction. | Preserve uniqueness, message row IDs, pins, foreign keys, triggers, old named-index consumers and selective ordered reads. Transform only the isolated compaction candidate and verify it before installation. Inspect actual index definitions; a simple DROP breaks older read-only usage extraction. Budget the additional table-copy space and work. |
 | 6 | `codex/storage-fts-maintenance` | Explicit, cancellable FTS segment consolidation followed by checked compaction. | Preserve every match, column filter, rank, snippet and cursor; cover interruption, concurrent readers, missing-index recovery, temporary space and WAL. Run maintenance only on explicit request, never automatically at startup. |
-| 7 | `codex/storage-multi-event-summaries` | Replace redundant tool summaries with explicit references to their retained result events. | Keep all event occurrences and exact summary bytes/lengths, including multi-agent ordering, blocked output and late updates. Existing empty-summary markers mean single-event reconstruction and cannot be repurposed. |
+| 7 | `codex/storage-multi-event-summaries` | Reference a retained result event when its bytes exactly equal the finalized multi-event call summary; keep composite summaries inline initially. | Keep all event occurrences and exact summary bytes/lengths, including multi-agent ordering, blocked output and late updates. Existing empty-summary markers mean single-event reconstruction and cannot be repurposed. Reference a unique event row, validate its owning call and regenerate local references during copies; event_index is not a uniqueness guarantee. |
 | 8 | `codex/storage-shared-payloads` | Share sufficiently large byte-identical values across independent message and tool occurrences. | Hash actual stored bytes and verify equality; preserve occurrence identity, NULL/empty distinctions, transactional ownership and safe reclamation. Cover every reader, writer, mirror, export and retained-history copy. Provider raw digests are not stored-payload identities. |
 | 9 | `codex/storage-live-session-refs` | Extend exact integer session references into messages, usage and tool tables. | Keep public IDs and existing message row IDs stable; retain namespace boundaries, pins, FK indexes, FTS identities, revision triggers and selective queries. Local reference numbers must never become external identities or be copied across generations. |
 | 10 | `codex/storage-message-id-packing` | Store canonical generated message IDs as 16 bytes with exact text fallback. | Reconstruct the original opaque ID exactly; preserve arbitrary imported IDs, case, ordering, revisions and tombstones. Encode indexed lookup arguments rather than decoding every indexed cell. This is separate from digest packing. |
@@ -76,6 +76,18 @@ that the latest implementation still has those defects.
 is not an AgentsView proposal. Open [2417](https://github.com/kenn-io/agentsview/pull/2417)
 compresses HTTP vector responses, not the archive. Neither is evidence that an
 additional SQLite storage feature has shipped.
+
+The first iteration's design review also found that compaction recovery needs
+distinct expectations for the original and transformed candidate schemas.
+Test fallback to the intact original backup when the candidate is unavailable;
+old compaction manifests must remain recoverable. A new recovery-manifest
+version may fence an unfinished maintenance operation without making the
+completed archive incompatible with older readers.
+
+For shared payloads, archive-copy discovery must recognize any logical view as
+well as its physical table. Compare reconstructed values in fingerprints and
+copy verification. Export byte budgets count expanded bytes for every
+occurrence, even when those occurrences share one stored value.
 
 ## When is an iteration acceptable?
 
