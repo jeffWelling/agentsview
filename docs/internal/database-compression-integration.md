@@ -92,6 +92,13 @@ ordinary and `fts5` vet checks passed. The payload feature separately passed
 race checks, 229,776 fuzz executions and Linux/Windows cross-compilation.
 Cross-compilation is not a claim of execution on those systems.
 
+Before adding the first additional reduction on November 11, the unchanged
+aggregate runtime passed the full database package again in 150.060 seconds
+and the full CLI package in 225.101 seconds. These are regression-suite run
+times, not operation-latency benchmarks. Both runs used Go's bundled timezone
+data and isolated fixtures. They establish the pre-iteration control; they do
+not validate the new message-index conversion.
+
 Two development-environment discrepancies were isolated rather than changing
 unrelated expectations. The Havana daylight-saving fixture passes with Go's
 bundled timezone data; host timezone data fails the same case on unchanged
