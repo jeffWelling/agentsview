@@ -42,6 +42,14 @@ maintenance reopen, repeated canonical compaction and format reversal. Its
 initial synthetic fixture had parser version zero; marking the generated
 current records correctly fixed that setup without relaxing the version gate.
 
+The complete aggregate at code revision
+`87e1700fb84cc1dea8e99864b081a2a13362dde7` then passed the full DB suite in
+163.958 seconds and the full CLI suite in 219.989 seconds. Formatting and
+ordinary and `fts5` vet checks passed. Independent composition review found no
+remaining blocker in capability flags, archive-only mode, restored views or
+reference/digest triggers. These checks use synthetic fixtures; they do not
+close the optional CJK or platform-specific runtime gates.
+
 The [standalone evidence](message-index-consolidation.md) and its complete
 measurement record show 5,840,896 bytes saved on a 98,635,776-byte synthetic
 archive (5.92%). Final conversion observations were 3.237–3.267 seconds, median
