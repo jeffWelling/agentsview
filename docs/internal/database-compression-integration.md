@@ -9,9 +9,48 @@ candidate, not an installation or migration instruction.
 The [additional reduction plan](database-compression-next-steps.md) now queues
 seven independent iterations and maps the November 10 upstream discussions to
 their correctness and performance gates. Index consolidation is the first
-iteration. Until a new feature tip and its aggregate evidence are recorded
-below, the runtime composition and measurements in this document remain the
-November 10 candidate; a plan update is not a new runtime validation result.
+additional iteration, described below. The original metadata measurement table
+still describes the November 10 composition; it has not been rerun or combined
+arithmetically with the new standalone saving.
+
+## First additional iteration: message-order index
+
+[Fork draft PR 7](https://github.com/jeffWelling/agentsview/pull/7) is included
+at `bbac5ef4723982b4cec84915f794226227cf8b68`, independently based on the
+same fork `main`. Its merge into the testing branch is
+`afca0bcb74133e106c5011c693f7b13c235cc729`. No PR was merged into `main`.
+
+Fresh archives use one named UNIQUE message-order index. Existing archives
+change only through explicit offline compaction, with candidate-only table
+conversion, exact value/type checks, preserved IDs, separate recovery
+fingerprints and message-index statistics refresh. Unsupported schemas and CJK
+runtime states fail before conversion. Normal startup does not convert an old
+archive. The completed layout remains readable and writable by the checked
+unchanged-main baseline.
+
+The standalone full DB and CLI suites passed in 145.325 and 224.267 seconds.
+After final context propagation, focused DB and CLI checks passed in 7.544 and
+2.439 seconds; formatting and both vet variants passed. The Windows
+space-helper source cross-compiled against pinned dependencies; the full CGO
+application was not run on Windows. Optional CJK preservation remains unrun
+without its pinned tokenizer dependency.
+
+The aggregate's focused composition suite passed in 5.181 seconds. It covers
+all four reference/digest combinations with archive-only mode, retained logical
+history, export checkpoints, pinned reads, actual message pins, conversion,
+maintenance reopen, repeated canonical compaction and format reversal. Its
+initial synthetic fixture had parser version zero; marking the generated
+current records correctly fixed that setup without relaxing the version gate.
+
+The [standalone evidence](message-index-consolidation.md) and its complete
+measurement record show 5,840,896 bytes saved on a 98,635,776-byte synthetic
+archive (5.92%). Final conversion observations were 3.237–3.267 seconds, median
+3.260 seconds. Controlled normal-start warm SQL reads were essentially equal;
+the immediate post-Compact object retained roughly one microsecond of page-read
+cost and 1.3 microseconds of FTS cost. That unresolved scope remains documented.
+This does not establish operation p95, cold-cache I/O, peak native memory or
+production-scale performance. It does not remove the earlier metadata
+experiments' performance concerns.
 
 ## What does each proposal deliver?
 

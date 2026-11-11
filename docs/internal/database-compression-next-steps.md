@@ -20,6 +20,15 @@ focused fork PR after its concrete implementation or useful experiment is
 reviewable. Document a failed experiment rather than enabling an unsafe one.
 Update the integration PR with each completed iteration and its measured scope.
 
+Iteration 5 is now [fork draft PR 7](https://github.com/jeffWelling/agentsview/pull/7),
+at `bbac5ef4723982b4cec84915f794226227cf8b68`. It starts directly from the
+recorded `main`. The integration branch includes that tip and is validating its
+composition with the earlier formats. The remaining six iterations are queued;
+none has been silently included in this feature. See the
+[index evidence](message-index-consolidation.md) for the synthetic savings,
+cross-build compatibility check and explicit limits, including the unrun CJK
+runtime case and the immediate post-maintenance read cost.
+
 | Order | Branch | Proposed change | Required proof before runtime enablement |
 | --- | --- | --- | --- |
 | 5 | `codex/storage-index-consolidation` | Store one message-order lookup instead of the duplicate `(session_id, ordinal)` trees. Fresh archives retain one named UNIQUE index; existing archives require explicit checked compaction. | Preserve uniqueness, message row IDs, pins, foreign keys, triggers, old named-index consumers and selective ordered reads. Transform only the isolated compaction candidate and verify it before installation. Inspect actual index definitions; a simple DROP breaks older read-only usage extraction. Budget the additional table-copy space and work. |
