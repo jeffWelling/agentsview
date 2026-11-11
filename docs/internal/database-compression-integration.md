@@ -1,10 +1,17 @@
 # Review the storage proposals together
 
-Status: integration candidate, 2026-11-10. No proposal is merged into `main`.
+Status: integration candidate, 2026-11-11. No proposal is merged into `main`.
 Every feature starts directly from fork `main` at
 `4bf12972e19486a59788692b0c832fff0002668e`; the combined branch is
 `codex/storage-integration-v2`. It is a review and scratch-data validation
 candidate, not an installation or migration instruction.
+
+The [additional reduction plan](database-compression-next-steps.md) now queues
+seven independent iterations and maps the November 10 upstream discussions to
+their correctness and performance gates. Index consolidation is the first
+iteration. Until a new feature tip and its aggregate evidence are recorded
+below, the runtime composition and measurements in this document remain the
+November 10 candidate; a plan update is not a new runtime validation result.
 
 ## What does each proposal deliver?
 

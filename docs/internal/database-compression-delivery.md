@@ -1,6 +1,6 @@
 # Deliver archive reductions as separate pull requests
 
-Status: proposal delivery in progress, 2026-11-10. The recorded fork `main`
+Status: proposal delivery in progress, 2026-11-11. The recorded fork `main`
 baseline is `4bf12972e19486a59788692b0c832fff0002668e`. This plan organizes the
 [compression proposal](database-compression-proposal.md); it does not supersede
 its preservation requirements or acceptance gates. The
@@ -23,6 +23,15 @@ measurement support in the first feature PR when it is directly needed. Split
 that support into its
 own PR only if it provides an independently useful developer capability; do not
 open empty placeholder PRs.
+
+The five initial feature and measurement PRs are open on the fork, with their
+combined draft in PR 6. The next seven iterations, their November 10 upstream
+research, and the stricter correctness and performance gates are owned by
+[additional storage reductions](database-compression-next-steps.md). Start
+with the duplicate message-order index and finish its standalone and aggregate
+review before implementing the next item. Every additional feature still
+starts directly from the recorded fork `main`, independently of the initial
+proposals and the other additional features.
 
 | Order | Feature branch | Focus and decision |
 | --- | --- | --- |
