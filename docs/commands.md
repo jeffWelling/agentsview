@@ -1080,6 +1080,7 @@ agentsview db compact [flags]
 | Flag            | Default | Description                                      |
 | --------------- | ------- | ------------------------------------------------ |
 | `--staging-dir` |         | Filesystem location for the staged database      |
+| `--consolidate-message-index` | `false` | Remove the duplicate message-order index in a checked candidate; requires direct access |
 | `--dry-run`     | `false` | Report the estimate without changing the archive |
 | `--keep-backup` | `false` | Keep the original database backup                |
 | `--yes`         | `false` | Skip the confirmation prompt                     |
@@ -1108,6 +1109,39 @@ agentsview db compact \
   --keep-backup --yes
 agentsview daemon start
 ```
+
+Use `--consolidate-message-index` to remove an older archive's duplicate
+message-order index. Stop the writable daemon first; this option is never sent
+to a daemon. New archives already use one unique index. Existing archives keep
+their layout until this option is requested. The command retains the index name
+used by older readers, uniqueness, every message ID and value, pins, search
+indexes, and conversation history. It does not reparse sources or change the
+archive's data version. Unknown message schemas or triggers are refused. CJK search must already be
+current with the matching tokenizer runtime; maintenance refuses a state that
+would require rebuilding or removing that index.
+
+The conversion rebuilds only the messages table inside the disposable candidate,
+checks exact values and SQLite storage types, refreshes message-index planner
+statistics, then compacts the candidate again.
+It needs additional temporary space and can take substantial time on a large
+archive. Its staging preflight reserves six times the occupied database size plus
+a safety margin. SQLite sorting can use another filesystem: the command reports
+its selected temporary directory and separately checks two times the occupied
+size plus a safety margin there. When these directories share a filesystem, their
+budgets are added. These conservative admission budgets supplement the normal
+installation and backup checks; they are not hard maximums. The command does not
+change process-wide temporary-directory settings. An already consolidated
+archive needs only the ordinary compaction budget.
+`--dry-run` includes that budget but does not predict index savings; compare the
+reported before and after footprints. The final result includes
+`message_index_status` (`consolidated` or `already_canonical`). Use `--keep-backup`
+to retain the original layout after success.
+
+A completed conversion remains readable and writable with older builds that use
+the named index. Interrupted conversion uses a version 2 recovery manifest and
+must be recovered with this build or a newer compatible build before downgrading.
+An older build refuses that unfinished operation. Normal compaction and an
+already consolidated archive continue to use the original manifest format.
 
 When a writable daemon is running, the command sends the request to that daemon.
 Direct file access is refused while another daemon owns the archive. Reads

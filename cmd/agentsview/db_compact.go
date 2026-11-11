@@ -55,10 +55,10 @@ func newDBCompactCommand() *cobra.Command {
 				return fmt.Errorf("loading config: %w", err)
 			}
 			if dryRun {
-				return runDBCompactDryRun(ctx, cfg, cmd.OutOrStdout(), jsonOutput)
+				return runDBCompactDryRun(ctx, cfg, cmd.OutOrStdout(), jsonOutput, options)
 			}
 			if !yes {
-				estimate, err := estimateDBCompact(ctx, cfg)
+				estimate, err := estimateDBCompactWithOptions(ctx, cfg, options)
 				if err != nil {
 					return err
 				}
@@ -84,6 +84,8 @@ func newDBCompactCommand() *cobra.Command {
 		"Directory for the staged compact database and backup")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false,
 		"Only report the estimate; do not modify the archive")
+	cmd.Flags().BoolVar(&options.ConsolidateMessageIndex, "consolidate-message-index", false,
+		"Consolidate the duplicate message-order index in staging (requires direct archive access)")
 	cmd.Flags().BoolVar(&options.KeepBackup, "keep-backup", false,
 		"Keep the original database backup after installation")
 	cmd.Flags().BoolVar(&yes, "yes", false,
@@ -93,12 +95,16 @@ func newDBCompactCommand() *cobra.Command {
 }
 
 func estimateDBCompact(ctx context.Context, cfg config.Config) (db.CompactEstimate, error) {
+	return estimateDBCompactWithOptions(ctx, cfg, db.CompactOptions{})
+}
+
+func estimateDBCompactWithOptions(ctx context.Context, cfg config.Config, options db.CompactOptions) (db.CompactEstimate, error) {
 	database, err := openReadOnlyDB(ctx, cfg)
 	if err != nil {
 		return db.CompactEstimate{}, fmt.Errorf("opening archive for compaction estimate: %w", err)
 	}
 	defer database.Close()
-	estimate, err := database.EstimateCompact(ctx)
+	estimate, err := database.EstimateCompactWithOptions(ctx, options)
 	if err != nil {
 		return db.CompactEstimate{}, fmt.Errorf("estimating archive compaction: %w", err)
 	}
@@ -106,9 +112,9 @@ func estimateDBCompact(ctx context.Context, cfg config.Config) (db.CompactEstima
 }
 
 func runDBCompactDryRun(
-	ctx context.Context, cfg config.Config, out io.Writer, jsonOutput bool,
+	ctx context.Context, cfg config.Config, out io.Writer, jsonOutput bool, options db.CompactOptions,
 ) error {
-	estimate, err := estimateDBCompact(ctx, cfg)
+	estimate, err := estimateDBCompactWithOptions(ctx, cfg, options)
 	if err != nil {
 		return err
 	}
@@ -123,6 +129,14 @@ func runDBCompactDryRun(
 	fmt.Fprintf(out, "  Estimated compacted DB: %s\n", formatBytes(estimate.EstimatedDatabaseBytes))
 	fmt.Fprintf(out, "  Estimated reclaim: %s\n", formatBytes(estimate.EstimatedReclaimBytes))
 	fmt.Fprintf(out, "  Peak extra space on one filesystem: %s\n", formatBytes(estimate.StagingRequiredBytes))
+	if options.ConsolidateMessageIndex {
+		fmt.Fprintln(out, "  Reclaim estimate excludes duplicate-index savings; the one-filesystem budget includes conversion and temporary work.")
+		if estimate.SQLiteTempDir != "" {
+			fmt.Fprintf(out, "  SQLite temporary directory: %s (additional budget %s).\n", estimate.SQLiteTempDir, formatBytes(estimate.SQLiteTempRequiredBytes))
+		} else {
+			fmt.Fprintln(out, "  Message-order index already uses the consolidated layout.")
+		}
+	}
 	if estimate.EstimatedReclaimBytes == 0 {
 		fmt.Fprintln(out, "  Live tool-result content remains stored; compaction will not compress it.")
 	}
@@ -145,6 +159,9 @@ func runDBCompact(
 	delegate, err := decideCompactRoute(tr, options.StagingDir)
 	if err != nil {
 		return db.CompactResult{}, err
+	}
+	if delegate && options.ConsolidateMessageIndex {
+		return db.CompactResult{}, errors.New("--consolidate-message-index requires direct archive access; stop the writable daemon first")
 	}
 	if delegate {
 		return requestDBCompact(ctx, tr, cfg.AuthToken, options)
@@ -185,7 +202,13 @@ func decideCompactRoute(tr transport, stagingDir string) (delegate bool, err err
 func runDBCompactDirect(
 	ctx context.Context, cfg config.Config, options db.CompactOptions,
 ) (db.CompactResult, error) {
-	database, lock, err := openWriteDB(ctx, cfg)
+	openArchive := openDB
+	if options.ConsolidateMessageIndex {
+		openArchive = func(ctx context.Context, cfg config.Config) (*db.DB, error) {
+			return db.OpenForMessageIndexConsolidation(ctx, cfg.DBPath)
+		}
+	}
+	database, lock, err := openWriteDBWith(ctx, cfg, openArchive)
 	if err != nil {
 		return db.CompactResult{}, fmt.Errorf("opening archive for compaction: %w", err)
 	}
@@ -196,6 +219,9 @@ func runDBCompactDirect(
 func requestDBCompact(
 	ctx context.Context, tr transport, authToken string, options db.CompactOptions,
 ) (db.CompactResult, error) {
+	if options.ConsolidateMessageIndex {
+		return db.CompactResult{}, errors.New("message-index consolidation cannot be delegated to a daemon")
+	}
 	api, err := apiclient.NewHTTPClient(tr.URL, authToken, &http.Client{Timeout: 0})
 	if err != nil {
 		return db.CompactResult{}, err
@@ -229,6 +255,9 @@ func writeDBCompactResult(out io.Writer, result db.CompactResult, jsonOutput boo
 		return json.MarshalEncode(jsontext.NewEncoder(out), result)
 	}
 	fmt.Fprintln(out, "Archive compaction completed.")
+	if result.MessageIndexStatus != "" {
+		fmt.Fprintf(out, "Message-order index: %s.\n", result.MessageIndexStatus)
+	}
 	fmt.Fprintln(out, "Before:")
 	fmt.Fprintf(out, "  Database: %s\n", formatBytes(result.Before.DatabaseBytes))
 	fmt.Fprintf(out, "  WAL:      %s\n", formatBytes(result.Before.WALBytes))

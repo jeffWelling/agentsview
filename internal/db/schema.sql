@@ -155,8 +155,7 @@ CREATE TABLE IF NOT EXISTS messages (
     source_uuid TEXT NOT NULL DEFAULT '',
     source_parent_uuid TEXT NOT NULL DEFAULT '',
     is_sidechain INTEGER NOT NULL DEFAULT 0,
-    is_compact_boundary INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(session_id, ordinal)
+    is_compact_boundary INTEGER NOT NULL DEFAULT 0
 );
 
 -- Durable, bounded artifact publication state. The export queue intentionally
@@ -246,7 +245,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_project
     ON sessions(project);
 CREATE INDEX IF NOT EXISTS idx_sessions_machine
     ON sessions(machine);
-CREATE INDEX IF NOT EXISTS idx_messages_session_ordinal
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_session_ordinal
     ON messages(session_id, ordinal);
 CREATE INDEX IF NOT EXISTS idx_messages_velocity
     ON messages(session_id, ordinal, role, timestamp, content_length);
