@@ -1,10 +1,28 @@
 # Deliver archive reductions as separate pull requests
 
-Status: proposal delivery in progress, 2026-11-11. The recorded fork `main`
-baseline is `4bf12972e19486a59788692b0c832fff0002668e`. This plan organizes the
+Status: proposal delivery in progress, refreshed 2026-11-13. The recorded fork
+`main` baseline is `4bf12972e19486a59788692b0c832fff0002668e`. This plan organizes the
 [compression proposal](database-compression-proposal.md); it does not supersede
 its preservation requirements or acceptance gates. The
 [concern matrix](database-compression-concerns.md) remains the source map.
+
+## How does newer upstream affect delivery?
+
+The first seven fork PRs retain the version-167 base recorded above: five
+feature/measurement PRs, their integration draft, and the additional index
+feature. Their results are not measurements of current upstream. The
+[November 13 schema audit](database-compression-upstream-audit.md) pins upstream
+at `d0d5a77b5168e09250e93cbf3b79b99d709bec20`, data version 179, and owns the
+required schema, search, export and auxiliary-storage updates.
+
+Do not raise a version constant or relax a schema guard to claim compatibility.
+An archive can retain an old header while a newer writer has installed DDL and
+left an upgrade pending. Narrow refusal of that state is being added to the
+older proposals; it does not implement the newer archive contract. Before
+upstream submission, port each feature's own code to a deliberate recorded
+upstream base, audit the actual diff, and rerun its affected preservation and
+performance gates. Keep branches independent and compose only on integration.
+Neither this refresh nor the refusal work authorizes a merge into `main`.
 
 ## How will the work be divided?
 
@@ -25,12 +43,13 @@ own PR only if it provides an independently useful developer capability; do not
 open empty placeholder PRs.
 
 The five initial feature and measurement PRs are open on the fork, with their
-combined draft in PR 6. The next seven iterations, their November 10 upstream
-research, and the stricter correctness and performance gates are owned by
-[additional storage reductions](database-compression-next-steps.md). Start
-with the duplicate message-order index and finish its standalone and aggregate
-review before implementing the next item. Every additional feature still
-starts directly from the recorded fork `main`, independently of the initial
+combined draft in PR 6. The additional seven-iteration sequence, its original
+November 10 research, refreshed upstream requirements, and the stricter
+correctness and performance gates are owned by
+[additional storage reductions](database-compression-next-steps.md). The
+duplicate message-order index is now fork draft PR 7; the remaining six
+iterations are queued. Finish its standalone and aggregate review before
+implementing the next item. Every additional feature still starts directly from the recorded fork `main`, independently of the initial
 proposals and the other additional features.
 
 | Order | Feature branch | Focus and decision |

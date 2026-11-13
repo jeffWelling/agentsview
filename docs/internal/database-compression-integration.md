@@ -1,6 +1,7 @@
 # Review the storage proposals together
 
-Status: integration candidate, 2026-11-11. No proposal is merged into `main`.
+Status: integration candidate, documentation refreshed 2026-11-13. No proposal
+is merged into `main`.
 Every feature starts directly from fork `main` at
 `4bf12972e19486a59788692b0c832fff0002668e`; the combined branch is
 `codex/storage-integration-v2`. It is a review and scratch-data validation
@@ -12,6 +13,28 @@ their correctness and performance gates. Index consolidation is the first
 additional iteration, described below. The original metadata measurement table
 still describes the November 10 composition; it has not been rerun or combined
 arithmetically with the new standalone saving.
+
+## What does newer upstream require?
+
+All runtime and performance evidence below is tied to the recorded version-167
+base and the listed feature revisions. It does not validate upstream
+`d0d5a77b5168e09250e93cbf3b79b99d709bec20`, whose parser data version is 179.
+The [November 13 schema audit](database-compression-upstream-audit.md) records
+new conversation usage fields and counters, OCR search storage, retained caches,
+copy boundaries and export behavior that must be ported deliberately.
+
+The original 16-field conversation checks remain evidence for that older
+schema. Current upstream has 18 fields, plus usage and analytics publication
+state. Its additional tables, OCR FTS rows and cache sidecars also change the
+whole-footprint denominator. No new savings or current-upstream parity are
+claimed here.
+
+A refusal-only safety adjustment is underway for archives whose old header
+coexists with newer DDL or pending upgrade state. A matching header alone does
+not prove that an archive belongs to the supported old schema. Record the
+standalone fixes and their aggregate checks when complete; they do not supply
+version-179 support. Keep existing evidence and unresolved performance limits
+visible while each feature is prepared for a separate upstream submission.
 
 ## First additional iteration: message-order index
 
@@ -101,7 +124,8 @@ historical report remains an active bug.
 The objective is a defensible proposal, not a claim that every acceptance gate
 has already passed. Unsupported paths stay disabled or outside the supported
 scope. The aggregate demonstrates both metadata application and reversal
-orders. Its evidence and remaining limits are recorded below.
+orders on its recorded baseline. Its evidence and remaining limits are
+recorded below.
 
 ## Combined evidence
 
@@ -118,8 +142,9 @@ The aggregate includes these independently based feature tips:
 Runtime and benchmark composition is recorded at
 `f7ca457e5b77d24bf64dc2fe3ea2002f5a47e1ab`; later evidence
 documentation does not change that code. The combined regression suite checks
-all 16 logical fields and types, both application orders, both reversal orders,
-archive-only and format flags, saved checkpoints and pinned message reads.
+all 16 logical fields and types in the version-167 baseline, both application
+orders, both reversal orders, archive-only and format flags, saved checkpoints
+and pinned message reads.
 It also covers ordinary, late, unchanged and visible-text writes, retained
 deletions, reopen, compaction, interruption after a committed batch, restart,
 and all 16 source/destination mode combinations. Physical storage assertions
@@ -160,8 +185,9 @@ before switching builds: both active formats must be reversed before stock use.
 
 ### How much space and performance changed
 
-The production benchmark uses 10,000 history rows across 100 sessions, including
-9,500 retained tombstones and 9,000 canonical digest pairs. Five hundred real
+The benchmark of the implemented conversion APIs uses 10,000 history rows
+across 100 sessions, including 9,500 retained tombstones and 9,000 canonical
+digest pairs. Five hundred real
 live messages support unchanged five-message reconciliation. Every variant
 starts with the same logical rows, then uses the actual conversion APIs,
 reversal, `VACUUM`, `ANALYZE` and checked WAL checkpoint. File sizes include
@@ -169,8 +195,9 @@ the whole synthetic archive, its mappings, indexes and common schema overhead.
 
 These are median-of-three, one-second samples on macOS arm64, Go 1.27.3,
 SQLite 3.53.4 and an Apple M3 Max. Reads select 50 logical revision records;
-unchanged imports use the real message replacement API. The untouched-main
-control uses the same fixture and timed loops, native column expressions and
+unchanged imports use the real message replacement API. The control uses
+unchanged version-167 main, the same fixture and timed loops, native column
+expressions and
 only the plain variant through a temporary benchmark overlay. Main runs before
 and after the aggregate show host drift; no production latency percentile is
 claimed. The [machine-readable results](storage-compression-measurements.json)
