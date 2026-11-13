@@ -24,8 +24,8 @@ maintenance. Some columns are installed by Go migration code rather than the
 embedded `schema.sql`, so inspecting that file alone is insufficient.
 
 The duplicate message-order indexes still exist at the newer upstream commit.
-No new explicit FTS `optimize`/`merge` command or generic tool-payload sharing was
-found in the audited production DB diff. This is a bounded code comparison, not
+No new explicit FTS `optimize`/`merge` command or generic tool-payload sharing
+was found in the audited production DB diff. This is a bounded code comparison, not
 a renewed search of every open proposal.
 
 ## What actually landed?
@@ -110,15 +110,26 @@ version therefore does not prove that its table, trigger and publication
 contracts still apply. Maintenance or reversal must not overwrite that newer
 state using an old schema template.
 
-A narrow refusal adjustment is underway for the existing proposals. Existing
-maintenance openers reject pending resync; the additional checks recognize
-known newer-schema markers even under an older header. They are not a generic
-proof that every unknown future schema will be detected. Validate refusal
-before writable initialization, conversion or copy mutation for each supported
-entry point, including old-header fixtures. Record the tested feature and
-integration revisions when complete. Refusal protects an unsupported archive;
-it does not port the proposals to version 179. Do not raise the accepted version
-or erase pending state to bypass the guard.
+The existing proposals now include narrow refusal checks for both new
+conversation columns and the five new primary-archive tables identified above,
+including the physical reference table behind its logical view. Existing
+maintenance openers also reject pending resync. Checks precede writable
+initialization, archive-copy mutation and maintenance, including already-open
+handles and conversion requests that would otherwise be no-ops.
+
+The [current validation record](database-compression-integration.md#current-safety-hardening-and-validation)
+pins the standalone fixes, code integration and test-only follow-up. It records
+14 copy entry points, unchanged source/destination file hashes and 28 passing
+cross-format refusal cases. The standalone full suites passed. A cancellation
+error race found by the aggregate DB run is fixed on its feature branch and
+integration; focused cancellation and refusal checks passed repeated runs.
+Final full aggregate suites remain pending. Do not infer a fully green
+aggregate from the individual passes.
+
+These markers are not a generic proof that every unknown future schema will be
+detected. Refusal protects an unsupported archive; it does not port the
+proposals to version 179. Do not raise the accepted version or erase pending
+state to bypass the guard.
 
 OCR's
 [version 173 scope](https://github.com/kenn-io/agentsview/blob/d0d5a77b5168e09250e93cbf3b79b99d709bec20/internal/db/data_version_scope.go#L62)
@@ -139,16 +150,16 @@ source reparsing or a data-version rebuild.
    including 18-field conversation history, retained deletions, usage and
    analytics counters, diagnostic events, session totals, OCR and persistent
    derived counts. Include old-header/newer-DDL and pending-upgrade fixtures.
-3. Prove exact logical values and SQLite types, all opaque IDs, pins, checkpoints,
-   revisions and retained history across conversion, interruption, reversal,
+3. Prove exact logical values and SQLite types, all opaque IDs, pins,
+   checkpoints, revisions and retained history across conversion, interruption, reversal,
    future writes and copies. Physical changes must not publish false usage or
    content changes. Extend every new ATTACH and ingestion boundary explicitly.
 4. Revalidate search and export contracts on the new code: OCR and CJK corpus
    identity, word-search ranking, phrases, snippets and snapshots; masked and
    revealed export modes; native source IDs arriving after initial storage.
 5. Refresh whole-file and per-object measurements, including mappings, indexes,
-   usage keys, OCR, retained caches, WAL, assets, sidecars and migration overlap.
-   Distinguish cold and warm process/cache states. Rerun affected standalone and
+   usage keys, OCR, retained caches, WAL, assets, sidecars and migration
+   overlap. Distinguish cold and warm process/cache states. Rerun affected standalone and
    combined costs; never add percentages from different fixtures or generations.
 
 The original 24.4% combined metadata result and 5.92% standalone message-index

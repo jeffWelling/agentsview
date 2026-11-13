@@ -29,19 +29,86 @@ state. Its additional tables, OCR FTS rows and cache sidecars also change the
 whole-footprint denominator. No new savings or current-upstream parity are
 claimed here.
 
-A refusal-only safety adjustment is underway for archives whose old header
-coexists with newer DDL or pending upgrade state. A matching header alone does
-not prove that an archive belongs to the supported old schema. Record the
-standalone fixes and their aggregate checks when complete; they do not supply
-version-179 support. Keep existing evidence and unresolved performance limits
-visible while each feature is prepared for a separate upstream submission.
+Refusal checks now protect the known newer schemas even when an archive header
+still reports an older version. They do not supply version-179 support. Keep
+existing evidence and unresolved performance limits visible while each feature
+is prepared for a separate upstream submission.
+
+## Current safety hardening and validation
+
+The November 13 [upstream audit](database-compression-upstream-audit.md) found
+that parser headers can remain old after newer DDL is installed. The three
+archive-changing proposals now check known newer schema markers before writable
+initialization, imports, compaction and format conversion or reversal. Already
+open handles are checked too, including maintenance requests that would
+otherwise return as no-ops. Existing pending-resync checks remain in place.
+
+| Feature | Base refusal fix included in integration | Current limit |
+| --- | --- | --- |
+| Session references | `90c380e1ecb957f495b5a63c468132d2d5745171` | Cancellation follow-up `a7337461f80a57955a6fa767d4c64624e78e2d71` is integrated; final full aggregate suites remain pending. |
+| Digest packing | `81d51ebdb64d5ef2739b45089051eaf47ea3092b` | Known newer layouts are refused; their fields are not ported into this format. |
+| Message-index consolidation | `a76f6acd24ffe4779774f67d3c24cc3940eb1b00` | Known newer layouts are refused; prior CJK and platform runtime gates remain. |
+
+These fixes are combined at code revision
+`47ac4fc4860f5ed869c14f7c08932b5a6790c8c9`. Additional cross-format tests are
+recorded separately at `5334531e9484467dd4918d9c4c282b31d82bebaf`; that commit
+changes tests only. The cancellation follow-up is integrated at the current
+runtime revision `3515d05771afea5a4ac56d7491e0559694121b89`.
+
+The guard recognizes both new conversation columns, `usage_key` and
+`usage_revision`, on the plain table and the physical reference table. It also
+recognizes `session_usage_totals`, `diagnostic_events`, `image_text_cache`,
+`image_text_occurrences` and `session_frustration_markers`, including SQLite's
+case-insensitive names and relevant view forms. This covers the new columns and
+tables identified by the pinned audit. It is not a general detector for every
+unknown future schema or proof that newer triggers and counters are supported.
+
+Regression coverage exercises 14 archive-copy entry points across the known
+newer layouts. Refusal leaves source and destination file hashes unchanged.
+The aggregate adds 28 passing cases: plain, references, digests and both
+formats, each through three open paths and four core copy paths. These fixtures retain
+the supported version-167 header and valid format flags while newer usage
+columns hold literal retained state, including a NUL-containing key. They also
+cover fields hidden by the logical reference view. These are refusal and
+preservation checks, not successful imports of version-179 data.
+
+The standalone full package runs passed with pinned Go 1.27.3 and its bundled
+timezone data:
+
+| Feature | Database package, seconds | CLI package, seconds |
+| --- | ---: | ---: |
+| Session references, base refusal fix | 223.268 | 318.680 |
+| Message-index consolidation | 233.564 | 315.537 |
+| Digest packing | 232.215 | 288.622 |
+
+Before the cancellation follow-up, the aggregate CLI package passed in
+259.207 seconds. The first aggregate DB run failed with a real cancellation
+race: an interrupted transaction could report `sql.ErrTxDone` instead of the
+cancellation error. The reference feature fixes this at
+`a7337461f80a57955a6fa767d4c64624e78e2d71`, now integrated at the runtime
+revision above. Focused cancellation/error checks and the 28-case refusal
+coverage passed 30 repetitions in 17.484 seconds. Final full aggregate DB and
+CLI suites are still running, so the current aggregate is not recorded as fully
+green. A host-timezone Havana fixture failure was separately reproduced on
+unchanged main. An earlier references run had truncated
+failure output and remains unclassified; it is not attributed to that timezone
+issue. All timings here are suite durations, not operation benchmarks.
+
+No performance results for these refusal fixes are claimed yet. The original
+metadata and index measurements below retain their exact older revisions and
+fixtures. The fixes do not resolve their measured costs or authorize a live
+archive conversion.
 
 ## First additional iteration: message-order index
 
 [Fork draft PR 7](https://github.com/jeffWelling/agentsview/pull/7) is included
-at `bbac5ef4723982b4cec84915f794226227cf8b68`, independently based on the
-same fork `main`. Its merge into the testing branch is
+at `a76f6acd24ffe4779774f67d3c24cc3940eb1b00`, independently based on the
+same fork `main`, with the refusal checks described above. The original
+implementation and measurements were recorded at
+`bbac5ef4723982b4cec84915f794226227cf8b68`, first combined at
 `afca0bcb74133e106c5011c693f7b13c235cc729`. No PR was merged into `main`.
+The following initial results are historical; they do not replace validation of
+the current hardening revision.
 
 Fresh archives use one named UNIQUE message-order index. Existing archives
 change only through explicit offline compaction, with candidate-only table
@@ -127,9 +194,10 @@ scope. The aggregate demonstrates both metadata application and reversal
 orders on its recorded baseline. Its evidence and remaining limits are
 recorded below.
 
-## Combined evidence
+## Original combined evidence
 
-The aggregate includes these independently based feature tips:
+The original metadata measurement composition included these independently
+based feature tips. The current refusal fixes are recorded above:
 
 | Fork PR | Branch | Included commit |
 | --- | --- | --- |

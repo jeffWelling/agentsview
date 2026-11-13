@@ -1,8 +1,8 @@
 # Reduce archive size without changing its contents
 
 Status: approved iteration plan, refreshed November 13, 2026. Each feature
-starts from fork `main` at `4bf12972e19486a59788692b0c832fff0002668e` and targets
-`main` on the same fork. Combine reviewed tips only on
+starts from fork `main` at `4bf12972e19486a59788692b0c832fff0002668e`
+and targets `main` on the same fork. Combine reviewed tips only on
 `codex/storage-integration-v2`, fork PR 6. No PR is approved for merging by
 this plan. All databases, builds and application processes used for this work
 are isolated fixtures; the installed application and live archive are excluded.
@@ -21,12 +21,16 @@ with upstream `d0d5a77b5168e09250e93cbf3b79b99d709bec20`, data version 179.
 New usage revisions, OCR search rows and retained caches are additional port
 requirements, not features already covered by these measurements.
 
-A narrow safety adjustment is underway to refuse archives with pending
-upgrades or newer schema state even when their header still reports the old
-version. This is refusal work, not support for version 179. Before any upstream
-submission, deliberately port and validate each standalone feature against its
-recorded upstream base. Preserve the original results as dated evidence; do
-not merge into fork `main` or stack features to perform that work.
+Narrow refusal checks now reject the known newer columns and tables even when
+an archive header still reports the old version. Existing pending-resync
+checks remain in place. The
+[current safety validation](database-compression-integration.md#current-safety-hardening-and-validation)
+records standalone passes, copy preservation and the cancellation follow-up
+whose final full aggregate validation remains pending. This is refusal work, not support for version
+179. Before any upstream submission, deliberately port and validate each
+standalone feature against its recorded upstream base. Preserve the original
+results as dated evidence; do not merge into fork `main` or stack features to
+perform that work.
 
 ## What happens next?
 
@@ -37,8 +41,10 @@ reviewable. Document a failed experiment rather than enabling an unsafe one.
 Update the integration PR with each completed iteration and its measured scope.
 
 Iteration 5 is now [fork draft PR 7](https://github.com/jeffWelling/agentsview/pull/7),
-at `bbac5ef4723982b4cec84915f794226227cf8b68`. It starts directly from the
-recorded `main`. The integration branch includes that tip and is validating its
+at `a76f6acd24ffe4779774f67d3c24cc3940eb1b00`, including refusal of known
+newer schemas. It starts directly from the recorded `main`. The original
+measurements remain tied to `bbac5ef4723982b4cec84915f794226227cf8b68`.
+The integration branch includes the hardened tip and is validating its
 composition with the earlier formats. The remaining six iterations are queued;
 none has been silently included in this feature. See the
 [index evidence](message-index-consolidation.md) for the synthetic savings,

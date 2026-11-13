@@ -1,8 +1,8 @@
 # Deliver archive reductions as separate pull requests
 
 Status: proposal delivery in progress, refreshed 2026-11-13. The recorded fork
-`main` baseline is `4bf12972e19486a59788692b0c832fff0002668e`. This plan organizes the
-[compression proposal](database-compression-proposal.md); it does not supersede
+`main` baseline is `4bf12972e19486a59788692b0c832fff0002668e`. This plan
+organizes the [compression proposal](database-compression-proposal.md); it does not supersede
 its preservation requirements or acceptance gates. The
 [concern matrix](database-compression-concerns.md) remains the source map.
 
@@ -17,17 +17,21 @@ required schema, search, export and auxiliary-storage updates.
 
 Do not raise a version constant or relax a schema guard to claim compatibility.
 An archive can retain an old header while a newer writer has installed DDL and
-left an upgrade pending. Narrow refusal of that state is being added to the
-older proposals; it does not implement the newer archive contract. Before
-upstream submission, port each feature's own code to a deliberate recorded
-upstream base, audit the actual diff, and rerun its affected preservation and
+left an upgrade pending. The older proposals now refuse the known newer schema
+markers; this does not implement the newer archive contract. See the
+[current safety validation](database-compression-integration.md#current-safety-hardening-and-validation)
+for exact feature fixes and pending full aggregate validation after the
+cancellation follow-up.
+Before upstream submission, port each feature's own code to a deliberate
+recorded upstream base, audit the actual diff, and rerun its affected
+preservation and
 performance gates. Keep branches independent and compose only on integration.
 Neither this refresh nor the refusal work authorizes a merge into `main`.
 
 ## How will the work be divided?
 
-Keep each change independently reviewable. Every feature branch starts from the fork's
-`main`, and every initial feature PR targets `main` in that same fork. No
+Keep each change independently reviewable. Every feature branch starts from
+the fork's `main`, and every initial feature PR targets `main` in that same fork. No
 feature branches from another feature or from integration. Test compatible
 changes together on a separate integration branch and draft PR in the fork.
 A failed experiment can remain a documented result without becoming a
@@ -35,8 +39,9 @@ production feature. Any later upstream submissions remain separate, focused
 PRs; the aggregate is not an umbrella submission to upstream.
 
 The initial proposals all use the recorded baseline above. Do not update or
-merge into `main` as a prerequisite for reviewing them. Keep unaccepted experimental features out of
-`main`; combining them for testing happens on integration. Include reusable
+merge into `main` as a prerequisite for reviewing them. Keep unaccepted
+experimental features out of `main`; combining them for testing happens on
+integration. Include reusable
 measurement support in the first feature PR when it is directly needed. Split
 that support into its
 own PR only if it provides an independently useful developer capability; do not
@@ -49,8 +54,9 @@ correctness and performance gates are owned by
 [additional storage reductions](database-compression-next-steps.md). The
 duplicate message-order index is now fork draft PR 7; the remaining six
 iterations are queued. Finish its standalone and aggregate review before
-implementing the next item. Every additional feature still starts directly from the recorded fork `main`, independently of the initial
-proposals and the other additional features.
+implementing the next item. Every additional feature still starts directly
+from the recorded fork `main`, independently of the initial proposals and the
+other additional features.
 
 | Order | Feature branch | Focus and decision |
 | --- | --- | --- |
@@ -117,8 +123,8 @@ the updated tip. Keep unavoidable conflict-resolution changes visible and
 reviewed on integration. A feature must still work against `main` by itself;
 integration-only fixes cannot conceal a broken standalone PR.
 
-Record the fork-`main` base, feature tips and integration commit for each result.
-After a feature changes, its old measurements do not validate the new aggregate.
+Record the fork-`main` base, feature tips and integration commit for each
+result. After a feature changes, its old measurements do not validate the new aggregate.
 When a feature is accepted into the fork or upstream, use that accepted
 implementation in subsequent baselines rather than applying the experimental
 copy again. If ancestry becomes confusing after a squash merge, start a new
