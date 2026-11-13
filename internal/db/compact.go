@@ -339,12 +339,6 @@ func (db *DB) Compact(ctx context.Context, options CompactOptions) (result Compa
 		return result, err
 	}
 
-	// A handle may predate a newer writer's schema changes. Refuse before
-	// staging or closing services, even when no index conversion is requested.
-	if err := validateArchiveSchemaCompatibility(ctx, db.rawReader(), "main"); err != nil {
-		return result, err
-	}
-
 	result.Before, err = db.EstimateCompactWithOptions(ctx, options)
 	if err != nil {
 		return result, fmt.Errorf("estimate archive compaction: %w", err)
