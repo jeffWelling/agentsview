@@ -154,6 +154,21 @@ included, and CJK-runtime coverage is separate from these measurements.
 
 ## Remaining validation limits
 
+The November 13 upstream audit compared the recorded `4bf12972` baseline
+(parser version 167) with `d0d5a77b` (version 179). Upstream now has conversation
+usage revisions, OCR search rows, diagnostic events, whole-session usage totals
+and retained frustration counts. The existing version fence rejects completed
+newer archives. Additional schema checks reject known newer tables or usage
+columns even when an unfinished upgrade retains an older version header. These
+checks run before writable initialization, archive imports and maintenance,
+including already-canonical index plans. They read schema metadata only.
+
+This refusal protects unsupported data; it does not establish version-179
+support. A deliberate port must refresh the exact trigger templates, preserve
+usage and analytics counters, and exercise the expanded OCR/search corpus and
+copy paths before claiming compatibility. The measurements above remain tied
+to the version-167 synthetic fixture.
+
 The CJK preservation and future-write regression is present but has not run in
 this environment because the optional tokenizer runtime is unavailable. It
 remains a validation gate. The Windows temporary-directory helper was compiled
