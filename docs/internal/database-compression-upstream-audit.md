@@ -123,8 +123,9 @@ pins the standalone fixes, code integration and test-only follow-up. It records
 cross-format refusal cases. The standalone full suites passed. A cancellation
 error race found by the aggregate DB run is fixed on its feature branch and
 integration; focused cancellation and refusal checks passed repeated runs.
-Final full aggregate suites remain pending. Do not infer a fully green
-aggregate from the individual passes.
+The final full aggregate database and command suites pass at the recorded
+runtime revision. This validates the safety checks on the older baseline; it
+does not establish compatibility with the newer schema.
 
 These markers are not a generic proof that every unknown future schema will be
 detected. Refusal protects an unsupported archive; it does not port the

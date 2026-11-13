@@ -20,7 +20,7 @@ An archive can retain an old header while a newer writer has installed DDL and
 left an upgrade pending. The older proposals now refuse the known newer schema
 markers; this does not implement the newer archive contract. See the
 [current safety validation](database-compression-integration.md#current-safety-hardening-and-validation)
-for exact feature fixes and pending full aggregate validation after the
+for exact feature fixes and the passing final aggregate checks after the
 cancellation follow-up.
 Before upstream submission, port each feature's own code to a deliberate
 recorded upstream base, audit the actual diff, and rerun its affected

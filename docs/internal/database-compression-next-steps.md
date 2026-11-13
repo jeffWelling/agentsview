@@ -25,8 +25,8 @@ Narrow refusal checks now reject the known newer columns and tables even when
 an archive header still reports the old version. Existing pending-resync
 checks remain in place. The
 [current safety validation](database-compression-integration.md#current-safety-hardening-and-validation)
-records standalone passes, copy preservation and the cancellation follow-up
-whose final full aggregate validation remains pending. This is refusal work, not support for version
+records standalone passes, copy preservation and passing full aggregate checks
+after the cancellation follow-up. This is refusal work, not support for version
 179. Before any upstream submission, deliberately port and validate each
 standalone feature against its recorded upstream base. Preserve the original
 results as dated evidence; do not merge into fork `main` or stack features to

@@ -45,7 +45,7 @@ otherwise return as no-ops. Existing pending-resync checks remain in place.
 
 | Feature | Base refusal fix included in integration | Current limit |
 | --- | --- | --- |
-| Session references | `90c380e1ecb957f495b5a63c468132d2d5745171` | Cancellation follow-up `a7337461f80a57955a6fa767d4c64624e78e2d71` is integrated; final full aggregate suites remain pending. |
+| Session references | `90c380e1ecb957f495b5a63c468132d2d5745171` | Cancellation follow-up `a7337461f80a57955a6fa767d4c64624e78e2d71` is integrated and passes the final aggregate checks; version 179 remains unsupported. |
 | Digest packing | `81d51ebdb64d5ef2739b45089051eaf47ea3092b` | Known newer layouts are refused; their fields are not ported into this format. |
 | Message-index consolidation | `a76f6acd24ffe4779774f67d3c24cc3940eb1b00` | Known newer layouts are refused; prior CJK and platform runtime gates remain. |
 
@@ -72,8 +72,8 @@ columns hold literal retained state, including a NUL-containing key. They also
 cover fields hidden by the logical reference view. These are refusal and
 preservation checks, not successful imports of version-179 data.
 
-The standalone full package runs passed with pinned Go 1.27.3 and its bundled
-timezone data:
+The standalone full package runs passed with Go 1.27.3. Final database runs
+used its bundled timezone data:
 
 | Feature | Database package, seconds | CLI package, seconds |
 | --- | ---: | ---: |
@@ -87,17 +87,37 @@ race: an interrupted transaction could report `sql.ErrTxDone` instead of the
 cancellation error. The reference feature fixes this at
 `a7337461f80a57955a6fa767d4c64624e78e2d71`, now integrated at the runtime
 revision above. Focused cancellation/error checks and the 28-case refusal
-coverage passed 30 repetitions in 17.484 seconds. Final full aggregate DB and
-CLI suites are still running, so the current aggregate is not recorded as fully
-green. A host-timezone Havana fixture failure was separately reproduced on
+coverage passed 30 repetitions in 17.484 seconds. At runtime revision
+`3515d05771afea5a4ac56d7491e0559694121b89`, the final full aggregate database
+suite passed in 156.277 seconds and the command suite in 230.741 seconds.
+Formatting and ordinary and `fts5` vet checks passed. These checks include the
+cross-format refusal regression and the cancellation follow-up; later changes
+only record evidence. A host-timezone Havana fixture failure was separately
+reproduced on
 unchanged main. An earlier references run had truncated
 failure output and remains unclassified; it is not attributed to that timezone
 issue. All timings here are suite durations, not operation benchmarks.
 
-No performance results for these refusal fixes are claimed yet. The original
-metadata and index measurements below retain their exact older revisions and
-fixtures. The fixes do not resolve their measured costs or authorize a live
-archive conversion.
+The [schema-guard measurement record](database-compression-schema-guard-measurements.json)
+retains the initial copy samples and a bracketed A-B-B-A comparison against
+unchanged integration `d736ef23`. Each phase has three batch means of five
+copies, using the existing sparse-orphan benchmark. For a ten-session source,
+the controlled pooled median changed from 10.805 to 11.099 milliseconds
+(+2.72%). Median allocations increased by 93.5 and allocated bytes by about
+8 KiB per copy. The guard intentionally adds fixed metadata queries at archive
+boundaries; it adds no payload scan or steady-state message-query check.
+
+The 2,000-session source had substantial variability: baseline batch means
+ranged from 36.3 to 148.9 milliseconds, and one candidate mean was 62.0
+milliseconds. Its pooled medians were 38.212 and 37.633 milliseconds, but these
+samples do not establish a speedup, latency tails or production scaling. The
+initial unbracketed small-copy pair showed a 5.9% increase; retaining that pair
+and the controls makes the measurement sensitivity visible. This is limited
+copy-path evidence, not a new storage saving or complete performance approval.
+
+The original metadata and index measurements below retain their exact older
+revisions and fixtures. These safety fixes do not resolve their measured costs
+or authorize a live archive conversion.
 
 ## First additional iteration: message-order index
 
