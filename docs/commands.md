@@ -976,6 +976,39 @@ the naming rules and preservation guarantees.
 
 ______________________________________________________________________
 
+### `agentsview db pack-digests`
+
+Source builds with this command can shrink canonical conversation digest values
+without changing export content or removing retained history. Stop the daemon or
+desktop app before running it. This command requires exclusive writer ownership
+and never starts or replaces a daemon.
+
+```bash
+agentsview db pack-digests
+agentsview db pack-digests --format json
+agentsview db pack-digests --unpack
+```
+
+The command converts at most 256 rows per transaction and enables packing for
+future writes. Cancellation preserves completed batches. Rerun the same command
+to finish; normal startup never resumes the scan. JSON output reports `enabled`,
+`scanned_rows`, and `changed_rows` for this invocation. It does not claim file
+bytes reclaimed. Run `db compact` separately when conversion finishes.
+
+Only exact lowercase 64-character hexadecimal digests become 32-byte values.
+Empty, uppercase, legacy and embedded-NUL TEXT is retained exactly. Existing
+non-TEXT digests prevent opt-in because their original meaning is unknown.
+Application queries and exports decode packed values; direct SQLite tools see
+BLOBs in those fields. Use a supporting AgentsView build for writes.
+
+Back up the archive before changing its format. Older builds refuse packed
+archives. Use `--unpack` with a supporting build before downgrading; the format
+fence remains until reversal is complete. The archive's existing retention,
+message identities, revisions, cursors and archive-only mode are preserved.
+Maintenance requires a current archive and performs no schema upgrades,
+identity adoption or startup backfills. Finish a required normal upgrade first.
+See [storage maintenance](/docs/data/#pack-conversation-digests).
+
 ### `agentsview db compact`
 
 Reclaim unused space in the local SQLite archive. The command writes and checks

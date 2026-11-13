@@ -2283,6 +2283,12 @@ func probeDatabaseConn(ctx context.Context,
 		}
 	}
 
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "main"); err != nil {
+		return false, false, false, err
+	}
+	if err := validateArchiveFormatState(ctx, conn); err != nil {
+		return false, false, false, err
+	}
 	schema, err := needsSchemaRepair(ctx, conn)
 	if err != nil {
 		return false, false, false, err
@@ -2352,6 +2358,7 @@ func readUserVersion(ctx context.Context, conn interface {
 
 // DecodeUserVersion returns the parser version and permanent archive-only mode.
 func DecodeUserVersion(version int) (int, bool) {
+	version &^= knownArchiveFormatFlags
 	if version >= archiveOnlyVersionBase {
 		return version - archiveOnlyVersionBase, true
 	}
@@ -2372,7 +2379,12 @@ func writeUserVersion(ctx context.Context, tx *sql.Tx, version int) error {
 			version += archiveOnlyVersionBase
 		}
 	}
-	_, err := tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", version))
+	flags, err := archiveFormatFlagsTx(ctx, tx)
+	if err != nil {
+		return err
+	}
+	version |= flags
+	_, err = tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", version))
 	return err
 }
 

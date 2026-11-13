@@ -85,6 +85,9 @@ func (d *DB) CopyOrphanedDataFromExcluding(
 		)
 	}()
 
+	if err := validateAttachedArchiveFormat(ctx, conn, "old_db"); err != nil {
+		return nil, fmt.Errorf("validating source archive: %w", err)
+	}
 	sourceVersion, err := prepareCodexSessionIDMap(ctx, conn, true)
 	if err != nil {
 		return nil, err
@@ -311,6 +314,9 @@ func (d *DB) CopyTrashedDataFrom(ctx context.Context, sourcePath string) ([]stri
 		)
 	}()
 
+	if err := validateAttachedArchiveFormat(ctx, conn, "old_db"); err != nil {
+		return nil, fmt.Errorf("validating source archive: %w", err)
+	}
 	sourceVersion, err := prepareCodexSessionIDMap(ctx, conn, false)
 	if err != nil {
 		return nil, err
@@ -461,6 +467,10 @@ func (d *DB) CopySyncStateFrom(ctx context.Context, sourcePath string) error {
 	defer func() {
 		_, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE old_db")
 	}()
+
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
 
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -1118,6 +1128,10 @@ func (d *DB) CopyCommitTrailersFrom(ctx context.Context, sourcePath string) erro
 		return fmt.Errorf("attaching source db: %w", err)
 	}
 	defer func() { _, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE old_db") }()
+
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
 	var hasTrailers bool
 	if err := conn.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM old_db.sqlite_master WHERE type='table' AND name='commit_trailers')`).Scan(&hasTrailers); err != nil {
 		return err
@@ -1156,6 +1170,10 @@ func (d *DB) CopyExcludedSessionsFrom(
 			ctx, conn, "DETACH DATABASE old_db",
 		)
 	}()
+
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
 
 	// Only copy if the source has the table (older DBs won't).
 	var tableExists int
@@ -1293,6 +1311,10 @@ func (d *DB) CopySessionMetadataFrom(
 			ctx, conn, "DETACH DATABASE old_db",
 		)
 	}()
+
+	if err := validateAttachedArchiveFormat(ctx, conn, "old_db"); err != nil {
+		return err
+	}
 
 	// All copied state must resolve old thread rows to the same page.
 	sourceVersion, err := prepareCodexSessionIDMap(ctx, conn, false)
@@ -1734,6 +1756,7 @@ func (d *DB) CopySessionMetadataFrom(
 				'usage_change_revision',
 				'usage_pricing_revision',
 				'conversation_publication_revision',
+				'conversation_digest_packing',
 				'worktree_mapping_publication_revision'
 			)
 			AND key NOT GLOB 'remote_import_data_version:*'

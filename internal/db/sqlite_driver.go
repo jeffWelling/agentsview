@@ -95,6 +95,12 @@ func configureSQLiteConnection(conn *sqlite3.SQLiteConn) error {
 }
 
 func configureArchiveSQLiteConnection(conn *sqlite3.SQLiteConn) error {
+	if err := conn.RegisterFunc("agentsview_plain_digest", plainConversationDigest, true); err != nil {
+		return err
+	}
+	if err := conn.RegisterFunc("agentsview_digest_text", conversationDigestText, true); err != nil {
+		return err
+	}
 	if err := configureSQLiteConnection(conn); err != nil {
 		return err
 	}

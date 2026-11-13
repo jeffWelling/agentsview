@@ -500,6 +500,10 @@ func (db *DB) CopyFrictionStateFrom(ctx context.Context, sourcePath string) erro
 	}
 	defer func() { _, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE old_db") }()
 
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
+
 	copies := []struct{ table, columns string }{
 		{"friction_digests", "date, timezone, rules_version, built_at, revision, sessions_scanned, snapshot_json, summary_json, markdown, markdown_sha256, run_id"},
 		{"friction_digest_sessions", "subject_id, date, subject_kind"},
