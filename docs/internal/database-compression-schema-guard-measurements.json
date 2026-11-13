@@ -1,0 +1,391 @@
+{
+  "date": "2026-11-13",
+  "platform": "darwin/arm64",
+  "cpu": "Apple M3 Max",
+  "go": "1.27.3",
+  "tags": [
+    "fts5"
+  ],
+  "benchmark": "BenchmarkCopySparseOrphan",
+  "fixture": "100 messages per source session; one orphan copied; all other session IDs already present at destination; plain conversation storage",
+  "command": "go test -tags fts5 ./internal/db -run ^$ -bench ^BenchmarkCopySparseOrphan$ -benchtime=5x -count=3",
+  "records": [
+    {
+      "label": "before",
+      "variant": "baseline",
+      "experiment": "initial",
+      "source_revision": "d736ef23d44a87a99f2ecc2d790c8c246ae209bf",
+      "samples": [
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10655642,
+          "bytes_per_op": 211352,
+          "allocs_per_op": 3784
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10787392,
+          "bytes_per_op": 202004,
+          "allocs_per_op": 3773
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10544908,
+          "bytes_per_op": 202635,
+          "allocs_per_op": 3756
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 36779192,
+          "bytes_per_op": 196516,
+          "allocs_per_op": 3713
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 36791392,
+          "bytes_per_op": 198851,
+          "allocs_per_op": 3724
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 36893950,
+          "bytes_per_op": 198454,
+          "allocs_per_op": 3718
+        }
+      ]
+    },
+    {
+      "label": "after",
+      "variant": "candidate",
+      "experiment": "initial",
+      "source_revision": "5334531e9484467dd4918d9c4c282b31d82bebaf",
+      "samples": [
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 11283808,
+          "bytes_per_op": 220452,
+          "allocs_per_op": 3895
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 11312058,
+          "bytes_per_op": 213300,
+          "allocs_per_op": 3866
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 11189775,
+          "bytes_per_op": 210544,
+          "allocs_per_op": 3857
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 38207941,
+          "bytes_per_op": 203707,
+          "allocs_per_op": 3811
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 37853117,
+          "bytes_per_op": 201371,
+          "allocs_per_op": 3801
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 38248300,
+          "bytes_per_op": 202590,
+          "allocs_per_op": 3804
+        }
+      ]
+    },
+    {
+      "label": "control-a1",
+      "variant": "baseline",
+      "experiment": "ABBA",
+      "source_revision": "d736ef23d44a87a99f2ecc2d790c8c246ae209bf",
+      "samples": [
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10960458,
+          "bytes_per_op": 207657,
+          "allocs_per_op": 3769
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10914416,
+          "bytes_per_op": 205313,
+          "allocs_per_op": 3761
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 12251750,
+          "bytes_per_op": 210004,
+          "allocs_per_op": 3778
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 148888858,
+          "bytes_per_op": 200089,
+          "allocs_per_op": 3730
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 100452192,
+          "bytes_per_op": 193809,
+          "allocs_per_op": 3708
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 38897550,
+          "bytes_per_op": 205419,
+          "allocs_per_op": 3755
+        }
+      ]
+    },
+    {
+      "label": "control-b1",
+      "variant": "candidate",
+      "experiment": "ABBA",
+      "source_revision": "5334531e9484467dd4918d9c4c282b31d82bebaf",
+      "samples": [
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 11143800,
+          "bytes_per_op": 228870,
+          "allocs_per_op": 3916
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 11281009,
+          "bytes_per_op": 206712,
+          "allocs_per_op": 3845
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10948225,
+          "bytes_per_op": 209332,
+          "allocs_per_op": 3850
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 37009067,
+          "bytes_per_op": 204024,
+          "allocs_per_op": 3809
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 37399433,
+          "bytes_per_op": 205310,
+          "allocs_per_op": 3809
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 37867042,
+          "bytes_per_op": 207537,
+          "allocs_per_op": 3821
+        }
+      ]
+    },
+    {
+      "label": "control-b2",
+      "variant": "candidate",
+      "experiment": "ABBA",
+      "source_revision": "5334531e9484467dd4918d9c4c282b31d82bebaf",
+      "samples": [
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 11053975,
+          "bytes_per_op": 216566,
+          "allocs_per_op": 3880
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10913225,
+          "bytes_per_op": 215654,
+          "allocs_per_op": 3864
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 11301733,
+          "bytes_per_op": 209860,
+          "allocs_per_op": 3854
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 36796450,
+          "bytes_per_op": 203968,
+          "allocs_per_op": 3812
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 38689092,
+          "bytes_per_op": 206073,
+          "allocs_per_op": 3819
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 62023534,
+          "bytes_per_op": 203020,
+          "allocs_per_op": 3817
+        }
+      ]
+    },
+    {
+      "label": "control-a2",
+      "variant": "baseline",
+      "experiment": "ABBA",
+      "source_revision": "d736ef23d44a87a99f2ecc2d790c8c246ae209bf",
+      "samples": [
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10548692,
+          "bytes_per_op": 204072,
+          "allocs_per_op": 3778
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10695733,
+          "bytes_per_op": 197684,
+          "allocs_per_op": 3746
+        },
+        {
+          "source_sessions": 10,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 10563275,
+          "bytes_per_op": 198896,
+          "allocs_per_op": 3762
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 37525775,
+          "bytes_per_op": 196633,
+          "allocs_per_op": 3712
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 36274825,
+          "bytes_per_op": 194854,
+          "allocs_per_op": 3711
+        },
+        {
+          "source_sessions": 2000,
+          "copied_sessions": 1,
+          "iterations": 5,
+          "ns_per_op": 37434383,
+          "bytes_per_op": 197673,
+          "allocs_per_op": 3722
+        }
+      ]
+    }
+  ],
+  "controlled_summary": [
+    {
+      "source_sessions": 10,
+      "pooled_medians": {
+        "baseline": {
+          "ns_per_op": 10805074.5,
+          "bytes_per_op": 204692.5,
+          "allocs_per_op": 3765.5
+        },
+        "candidate": {
+          "ns_per_op": 11098887.5,
+          "bytes_per_op": 212757.0,
+          "allocs_per_op": 3859.0
+        }
+      },
+      "median_time_change_percent": 2.7192130882577548
+    },
+    {
+      "source_sessions": 2000,
+      "pooled_medians": {
+        "baseline": {
+          "ns_per_op": 38211662.5,
+          "bytes_per_op": 197153.0,
+          "allocs_per_op": 3717.0
+        },
+        "candidate": {
+          "ns_per_op": 37633237.5,
+          "bytes_per_op": 204667.0,
+          "allocs_per_op": 3814.5
+        }
+      },
+      "median_time_change_percent": -1.5137394244492786
+    }
+  ],
+  "limitations": [
+    "Initial pair is unbracketed; controlled runs use A-B-B-A order with three batch means per phase and five operations per batch.",
+    "Time-zone data is host-selected in the initial pair and pinned to the Go toolchain dataset for the controlled runs.",
+    "Large-fixture baseline batch means range from 36.3 to 148.9 milliseconds and one candidate mean is 62.0 milliseconds. No speedup, latency-tail, or scaling guarantee follows from these pooled medians.",
+    "Metadata validation intentionally adds fixed SQL work and allocations at archive-open/copy/maintenance boundaries. No payload scan or steady-state message-query check was added.",
+    "This measures the version-167 synthetic baseline and safety guards, not version-179 support, conversion savings, cold I/O, peak memory, or the original formats performance acceptance."
+  ]
+}

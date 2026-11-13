@@ -155,8 +155,7 @@ CREATE TABLE IF NOT EXISTS messages (
     source_uuid TEXT NOT NULL DEFAULT '',
     source_parent_uuid TEXT NOT NULL DEFAULT '',
     is_sidechain INTEGER NOT NULL DEFAULT 0,
-    is_compact_boundary INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(session_id, ordinal)
+    is_compact_boundary INTEGER NOT NULL DEFAULT 0
 );
 
 -- Durable, bounded artifact publication state. The export queue intentionally
@@ -246,7 +245,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_project
     ON sessions(project);
 CREATE INDEX IF NOT EXISTS idx_sessions_machine
     ON sessions(machine);
-CREATE INDEX IF NOT EXISTS idx_messages_session_ordinal
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_session_ordinal
     ON messages(session_id, ordinal);
 CREATE INDEX IF NOT EXISTS idx_messages_velocity
     ON messages(session_id, ordinal, role, timestamp, content_length);
@@ -1645,25 +1644,9 @@ CREATE TABLE IF NOT EXISTS session_signal_state (
     updated_at          TEXT NOT NULL
 );
 
--- SQLite-only parser-proven conversation projection and compact latest changes.
--- Text lives in messages and is read back by ordinal; body is retired and
--- stays NULL. Removed rows retain metadata, not old text.
-CREATE TABLE IF NOT EXISTS conversation_messages (
-    session_id TEXT NOT NULL, message_id TEXT NOT NULL,
-    ordinal INTEGER NOT NULL, role TEXT NOT NULL, timestamp TEXT NOT NULL DEFAULT '',
-    source_id TEXT NOT NULL DEFAULT '', body TEXT, digest TEXT NOT NULL DEFAULT '',
-    text_bytes INTEGER NOT NULL DEFAULT 0,
-    visible_digest TEXT NOT NULL DEFAULT '',
-    visible_text_bytes INTEGER NOT NULL DEFAULT 0,
-    visible_gap TEXT NOT NULL DEFAULT 'visible_text_unavailable', gap TEXT NOT NULL DEFAULT '',
-    deleted INTEGER NOT NULL DEFAULT 0, removed INTEGER NOT NULL DEFAULT 0,
-    revision INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY(session_id, message_id)
-);
-CREATE INDEX IF NOT EXISTS idx_conversation_messages_revision ON conversation_messages(revision);
-CREATE INDEX IF NOT EXISTS idx_conversation_messages_source ON conversation_messages(session_id, source_id);
-CREATE INDEX IF NOT EXISTS idx_conversation_messages_ordinal
-    ON conversation_messages(session_id, ordinal) WHERE removed = 0;
+-- SQLite-only conversation session changes. Message-history DDL is selected
+-- by ensureConversationMessageLayoutTx in the same schema transaction, because
+-- the optional reference layout exposes conversation_messages as a read view.
 CREATE TABLE IF NOT EXISTS conversation_session_changes (
     session_id TEXT PRIMARY KEY,
     revision INTEGER NOT NULL,

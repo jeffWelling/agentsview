@@ -322,18 +322,23 @@ func (db *DB) CopyArchiveIdentityFrom(ctx context.Context, sourcePath string) er
 		_, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE identity_source")
 	}()
 
+	if err := validateAttachedConversationSource(ctx, conn, "identity_source"); err != nil {
+		return fmt.Errorf("validating archive identity source: %w", err)
+	}
+
 	type metadataRow struct {
 		value     string
 		createdAt string
 		updatedAt string
 	}
-	metadata := make(map[string]metadataRow, 3)
+	metadata := make(map[string]metadataRow, 5)
 	// A rebuilt archive stays as cold or active as the archive it replaces.
 	rows, err := conn.QueryContext(ctx, `
 		SELECT key, value, created_at, updated_at
 		FROM identity_source.archive_metadata
-		WHERE key IN (?, ?, ?)`,
-		archiveMetadataArchiveIDKey, archiveMetadataArchiveSaltKey, conversationExportInitializedKey,
+		WHERE key IN (?, ?, ?, ?, ?)`,
+		archiveMetadataArchiveIDKey, archiveMetadataArchiveSaltKey, conversationExportInitializedKey, conversationSessionRefsKey,
+		conversationDigestPackingKey,
 	)
 	if err != nil {
 		return fmt.Errorf("reading archive identity source: %w", err)
@@ -373,6 +378,7 @@ func (db *DB) CopyArchiveIdentityFrom(ctx context.Context, sourcePath string) er
 		archiveMetadataArchiveIDKey,
 		archiveMetadataArchiveSaltKey,
 		conversationExportInitializedKey,
+		conversationSessionRefsKey,
 	} {
 		row, ok := metadata[key]
 		if !ok {
@@ -388,6 +394,21 @@ func (db *DB) CopyArchiveIdentityFrom(ctx context.Context, sourcePath string) er
 			key, row.value, row.createdAt, row.updatedAt,
 		); err != nil {
 			return fmt.Errorf("copying archive identity %s: %w", key, err)
+		}
+	}
+	if err := initializeConversationRefsForRebuildTx(ctx, tx); err != nil {
+		return err
+	}
+	// Rebuilds inherit the desired packing mode before the first copied row.
+	// An interrupted reversal requests plain TEXT in the replacement archive.
+	if sourceMode, ok := metadata[conversationDigestPackingKey]; ok {
+		if sourceMode.value != "v1" && sourceMode.value != "unpacking" {
+			return fmt.Errorf("unsupported source conversation digest packing mode %q", sourceMode.value)
+		}
+		if sourceMode.value == "v1" {
+			if err := setConversationDigestModeTx(ctx, tx, true); err != nil {
+				return err
+			}
 		}
 	}
 	if err := tx.Commit(); err != nil {

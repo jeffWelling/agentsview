@@ -236,6 +236,10 @@ func (db *DB) CopyInsightsFrom(ctx context.Context, sourcePath string) error {
 		)
 	}()
 
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
+
 	hasCol := func(name string) bool {
 		var count int
 		err := conn.QueryRowContext(ctx,

@@ -976,6 +976,96 @@ the naming rules and preservation guarantees.
 
 ______________________________________________________________________
 
+### `agentsview db session-refs`
+
+This opt-in format stores each conversation-history session identifier once,
+then uses integer references in message history and its indexes. Exported
+session and message IDs, stored text, deletion history, revisions, and existing
+cursors stay unchanged. The session-change journal keeps its text identifiers.
+This is a storage-layout change; it does not compress message bodies or digests.
+
+Stop the local daemon and close other direct database clients before running
+this command. Keep a verified backup and a compatible binary available. Once
+converted, older builds refuse the archive's storage version. Restore text keys
+successfully before using a build without this format. If digest packing is
+also enabled, follow the [combined-format reversal](#reversing-combined-storage-formats)
+instructions before returning to an ordinary build.
+
+```bash
+agentsview db session-refs --yes
+agentsview db compact --keep-backup --yes
+# Restore this format before switching to a build without session references:
+agentsview db session-refs --restore-text --yes
+```
+
+The command takes exclusive local writer ownership and does not start sync.
+It requires an archive whose normal schema upgrade has already completed.
+Conversion copies history in batches, checks every logical field, and switches
+representations in one transaction. An interruption before that switch leaves
+the original representation authoritative; repeating the command restarts the
+staged copy. Startup never converts existing history automatically.
+
+Allow enough free disk space for a second copy of conversation history, its
+indexes, and SQLite's write-ahead log. Conversion frees pages inside the file;
+`db compact` reclaims those pages separately. Integer references add a lookup to
+history reads, so savings and query performance depend on session sizes and
+retained deletion history. This command does not promise a fixed savings ratio.
+
+Use `--format json --yes` for a report containing the row count, selected format,
+and whether a conversion occurred. Repeating an already-applied selection does
+not rewrite the history. A full archive rebuild retains the selected format.
+
+______________________________________________________________________
+### `agentsview db pack-digests`
+
+Source builds with this command can shrink canonical conversation digest values
+without changing export content or removing retained history. Stop the daemon or
+desktop app before running it. This command requires exclusive writer ownership
+and never starts or replaces a daemon.
+
+```bash
+agentsview db pack-digests
+agentsview db pack-digests --format json
+agentsview db pack-digests --unpack
+```
+
+The command converts at most 256 rows per transaction and enables packing for
+future writes. Cancellation preserves completed batches. Rerun the same command
+to finish; normal startup never resumes the scan. JSON output reports `enabled`,
+`scanned_rows`, and `changed_rows` for this invocation. It does not claim file
+bytes reclaimed. Run `db compact` separately when conversion finishes.
+
+Only exact lowercase 64-character hexadecimal digests become 32-byte values.
+Empty, uppercase, legacy and embedded-NUL TEXT is retained exactly. Existing
+non-TEXT digests prevent opt-in because their original meaning is unknown.
+Application queries and exports decode packed values; direct SQLite tools see
+BLOBs in those fields. Use a supporting AgentsView build for writes.
+
+Back up the archive before changing its format. Older builds refuse packed
+archives. Use `--unpack` with a supporting build before downgrading; the format
+fence remains until reversal is complete. The archive's existing retention,
+message identities, revisions, cursors and archive-only mode are preserved.
+Maintenance requires a current archive and performs no schema upgrades,
+identity adoption or startup backfills. Finish a required normal upgrade first.
+See [storage maintenance](/docs/data/#pack-conversation-digests).
+
+### Reversing combined storage formats
+
+Use a build that supports every format active in the archive. If both session
+references and digest packing are enabled, stop the daemon and close other
+database clients, then run both reversals with the combined build:
+
+```bash
+agentsview db session-refs --restore-text --yes
+agentsview db pack-digests --unpack
+```
+
+Either order is supported. Finish both before returning to ordinary AgentsView;
+each command removes only its own compatibility flag. A standalone feature
+build also rejects the other feature's flag, so reverse any unsupported format
+before switching between feature builds. Interrupted reversal requires a build
+supporting all remaining flags. Compaction is separate from format reversal.
+
 ### `agentsview db compact`
 
 Reclaim unused space in the local SQLite archive. The command writes and checks
@@ -990,6 +1080,7 @@ agentsview db compact [flags]
 | Flag            | Default | Description                                      |
 | --------------- | ------- | ------------------------------------------------ |
 | `--staging-dir` |         | Filesystem location for the staged database      |
+| `--consolidate-message-index` | `false` | Remove the duplicate message-order index in a checked candidate; requires direct access |
 | `--dry-run`     | `false` | Report the estimate without changing the archive |
 | `--keep-backup` | `false` | Keep the original database backup                |
 | `--yes`         | `false` | Skip the confirmation prompt                     |
@@ -1018,6 +1109,39 @@ agentsview db compact \
   --keep-backup --yes
 agentsview daemon start
 ```
+
+Use `--consolidate-message-index` to remove an older archive's duplicate
+message-order index. Stop the writable daemon first; this option is never sent
+to a daemon. New archives already use one unique index. Existing archives keep
+their layout until this option is requested. The command retains the index name
+used by older readers, uniqueness, every message ID and value, pins, search
+indexes, and conversation history. It does not reparse sources or change the
+archive's data version. Unknown message schemas or triggers are refused. CJK search must already be
+current with the matching tokenizer runtime; maintenance refuses a state that
+would require rebuilding or removing that index.
+
+The conversion rebuilds only the messages table inside the disposable candidate,
+checks exact values and SQLite storage types, refreshes message-index planner
+statistics, then compacts the candidate again.
+It needs additional temporary space and can take substantial time on a large
+archive. Its staging preflight reserves six times the occupied database size plus
+a safety margin. SQLite sorting can use another filesystem: the command reports
+its selected temporary directory and separately checks two times the occupied
+size plus a safety margin there. When these directories share a filesystem, their
+budgets are added. These conservative admission budgets supplement the normal
+installation and backup checks; they are not hard maximums. The command does not
+change process-wide temporary-directory settings. An already consolidated
+archive needs only the ordinary compaction budget.
+`--dry-run` includes that budget but does not predict index savings; compare the
+reported before and after footprints. The final result includes
+`message_index_status` (`consolidated` or `already_canonical`). Use `--keep-backup`
+to retain the original layout after success.
+
+A completed conversion remains readable and writable with older builds that use
+the named index. Interrupted conversion uses a version 2 recovery manifest and
+must be recovered with this build or a newer compatible build before downgrading.
+An older build refuses that unfinished operation. Normal compaction and an
+already consolidated archive continue to use the original manifest format.
 
 When a writable daemon is running, the command sends the request to that daemon.
 Direct file access is refused while another daemon owns the archive. Reads

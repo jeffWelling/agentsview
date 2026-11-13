@@ -23,7 +23,11 @@ func ensureConversationVisibleSchema(ctx context.Context, tx *sql.Tx) error {
 		func(query string, args ...any) (sql.Result, error) { return tx.ExecContext(ctx, query, args...) }, nil); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, conversationVisibleRevisionSQL); err != nil {
+	table, err := conversationPhysicalTableTx(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, conversationSessionRefTriggerSQL(conversationVisibleRevisionSQL, table != "conversation_messages")); err != nil {
 		return err
 	}
 	if !present {
@@ -45,9 +49,9 @@ const conversationVisibleCopyColumns = `,visible_digest,visible_text_bytes,visib
 
 func conversationCopySelect(ctx context.Context, tx *sql.Tx) string {
 	if oldDBHasColumn(ctx, tx, "conversation_messages", "visible_digest") {
-		return conversationCopyColumns + conversationVisibleCopyColumns
+		return conversationDigestCopyColumns + `,` + conversationDigestReadSQL("visible_digest", "old_db.archive_metadata") + ` AS visible_digest,visible_text_bytes,visible_gap`
 	}
-	return conversationCopyColumns + `,'',0,'visible_text_unavailable'`
+	return conversationDigestCopyColumns + `,'' AS visible_digest,0 AS visible_text_bytes,'visible_text_unavailable' AS visible_gap`
 }
 
 // Empty mode preserves the existing stored-content wire format and cursors.
@@ -82,7 +86,7 @@ func conversationColumnsForMode(mode string) string {
 	if mode == "visible" {
 		return `session_id,message_id,CAST(revision AS TEXT),ordinal,role,NULLIF(timestamp,''),deleted,
 		 CASE WHEN gap='archive_content_excluded' THEN gap WHEN visible_gap!='' THEN visible_gap ELSE gap END,
-		 CASE WHEN gap='archive_content_excluded' THEN '' ELSE visible_digest END,
+		 CASE WHEN gap='archive_content_excluded' THEN '' ELSE ` + conversationDigestReadSQL("visible_digest", "archive_metadata") + ` END,
 		 CASE WHEN gap='archive_content_excluded' THEN 0 ELSE visible_text_bytes END`
 	}
 	return conversationChangeColumns

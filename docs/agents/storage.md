@@ -274,6 +274,77 @@ including the shared Codex parser. Retained sources that cannot be reparsed keep
 their content and classification gaps; export itself never reads the original
 source.
 
+Startup, maintenance, and archive imports reject known newer schema layouts
+before initialization or copying. A pending preservation rebuild can leave an
+older parser version beside newer schema; that header alone does not establish
+compatibility. Keep these refusals until readers, writers, and copies support
+the newer fields and retained state.
+
+### Opt-in conversation session references
+
+`db session-refs` normalizes repeated session identifiers in conversation
+message history. Its reverse command, `--restore-text`, restores the ordinary
+layout. The `conversation_session_refs` metadata key (`v1`) and `1 << 23`
+storage-version flag must agree. Builds without this format reject the flag;
+unknown modes fail closed. Parser versions and archive-only mode stay distinct.
+
+In this format, `conversation_message_refs` stores the 16 original logical
+fields with an integer `session_ref` in place of the text session key.
+`conversation_session_refs` maps those references to exact opaque text IDs.
+References have no lifetime dependency on `sessions`: hard-deleted message
+history retains its identity. The read-only `conversation_messages` view
+restores the original logical columns. Application writes target the physical
+table through explicit update predicates and mapped inserts; there are no
+`INSTEAD OF` write triggers. The session-change journal stays in its ordinary
+text-keyed layout.
+
+Conversion holds the archive writer mutex and the CLI's process-level writer
+ownership. It rejects unknown physical columns, indexes, or triggers before
+replacing a table. It copies a staging table in 512-row rowid ranges, verifies
+both directions across every field, and cuts over tables, indexes, triggers,
+metadata, and the compatibility flag in one transaction. It does not use the
+ordinary preservation-copy helpers, which deliberately allocate new revisions.
+A format conversion preserves database identity, publication counters, opaque
+message IDs, NULL versus empty values, and all revisions. Interrupted staging
+is discarded on the next explicit attempt; normal startup does no conversion.
+
+Fresh rebuilds copy the format policy with archive identity before any message
+write, then resolve destination references from logical session IDs. Reference
+numbers are local storage details and must never be copied across generations.
+Attached sources receive the same format metadata and version checks as normal
+opens before their state is copied. Conversion and preservation copies also
+refuse physical message rows whose session mapping is missing; they retain the
+original rows for recovery. Cold archives remain cold. Their first export
+creates projections through the
+same normalized write path. Rebuilds still get new database generations and
+revision counters, as specified by the conversation-export contract above.
+### Optional conversation digest packing
+
+`db pack-digests` explicitly opts an archive into 32-byte BLOB storage for exact
+lowercase 64-character hexadecimal `conversation_messages.digest` and
+`visible_digest`. Other TEXT stays byte-identical. Pre-existing non-TEXT values
+are rejected before opt-in. Decode through `conversationDigestReadSQL` for
+logical reads and copy selections; do not cast BLOBs to TEXT. Copies decode the
+source representation and let the destination's triggers choose its format.
+Rebuilds inherit enabled packing before copying rows.
+
+The `conversation_digest_packing` metadata key is `v1` while enabled and
+`unpacking` during reversal. Both require `1 << 24` in `user_version`; bits 21
+and 22 remain reserved for older prototypes. Unsupported flags, unknown modes,
+and marker/flag mismatches fail closed. Revision triggers compare logical
+digests so physical conversion does not advance publication revisions. Restore
+the original triggers and remove the fence only after reversal verifies every
+digest is TEXT. This feature does not change parser versions, identity,
+retention, mirror schemas or startup conversion behavior.
+
+Maintenance owns the archive writer and visits rowids in batches of at most
+256. Cancellation leaves committed batches readable and a rerun resumes by
+rescanning the mixed representation. Readers see transaction snapshots. Keep
+migration, reversal, future writes, both trigger orders, copies, compaction and
+legacy fallback coverage when changing these paths. The synthetic
+`BenchmarkConversationDigestPacking` measures file bytes and logical revision
+reads; its fixture does not predict whole-archive savings.
+
 ### Claude subagent sources
 
 Joined local subagent writes record contributing transcript paths with the

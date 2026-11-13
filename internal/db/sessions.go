@@ -4879,6 +4879,10 @@ func (db *DB) CopySessionSourceOwnershipBaselinesFrom(
 	defer func() {
 		_, _ = conn.ExecContext(ctx, "DETACH DATABASE old_db")
 	}()
+
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("starting source baseline copy transaction: %w", err)

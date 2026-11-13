@@ -22,11 +22,12 @@ import (
 )
 
 const (
-	compactManifestVersion = 1
-	compactSafetyFloor     = int64(256 << 20)
-	compactSafetyNumerator = int64(1)
-	compactSafetyDenom     = int64(10)
-	compactMaxInt64        = int64(^uint64(0) >> 1)
+	compactManifestVersion            = 1
+	compactTransformedManifestVersion = 2
+	compactSafetyFloor                = int64(256 << 20)
+	compactSafetyNumerator            = int64(1)
+	compactSafetyDenom                = int64(10)
+	compactMaxInt64                   = int64(^uint64(0) >> 1)
 
 	// compactPhasePrepared means the candidate and backup are durable and the
 	// original archive is still authoritative: recovery may roll forward or
@@ -88,7 +89,9 @@ type CompactEstimate struct {
 	// staging and the live archive share one filesystem. It includes the
 	// original backup, compacted candidate, final .installing copy, and safety
 	// margin.
-	StagingRequiredBytes int64 `json:"staging_required_bytes"`
+	StagingRequiredBytes    int64  `json:"staging_required_bytes"`
+	SQLiteTempDir           string `json:"sqlite_temp_dir,omitempty"`
+	SQLiteTempRequiredBytes int64  `json:"sqlite_temp_required_bytes,omitempty"`
 }
 
 // CompactOptions controls where the staged archive is built and whether the
@@ -96,15 +99,18 @@ type CompactEstimate struct {
 type CompactOptions struct {
 	StagingDir string `json:"staging_dir"`
 	KeepBackup bool   `json:"keep_backup"`
+	// ConsolidateMessageIndex changes only the staged candidate; normal compaction keeps its schema.
+	ConsolidateMessageIndex bool `json:"consolidate_message_index,omitempty"`
 }
 
 // CompactResult is the observable result of a staged archive replacement.
 type CompactResult struct {
-	Before         CompactEstimate `json:"before"`
-	After          CompactEstimate `json:"after"`
-	ReclaimedBytes int64           `json:"reclaimed_bytes"`
-	BackupPath     string          `json:"backup_path,omitempty"`
-	DurationMillis int64           `json:"duration_millis"`
+	Before             CompactEstimate `json:"before"`
+	After              CompactEstimate `json:"after"`
+	ReclaimedBytes     int64           `json:"reclaimed_bytes"`
+	BackupPath         string          `json:"backup_path,omitempty"`
+	DurationMillis     int64           `json:"duration_millis"`
+	MessageIndexStatus string          `json:"message_index_status,omitempty"`
 }
 
 type compactManifest struct {
@@ -120,6 +126,7 @@ type compactManifest struct {
 	ExpectedCompactedBytes int64            `json:"expected_compacted_bytes"`
 	ExpectedUserVersion    int              `json:"expected_user_version"`
 	ExpectedSchemaHash     string           `json:"expected_schema_hash"`
+	OriginalSchemaHash     string           `json:"original_schema_hash,omitempty"`
 	ExpectedCounts         map[string]int64 `json:"expected_counts"`
 	KeepBackup             bool             `json:"keep_backup"`
 }
@@ -289,15 +296,16 @@ func pragmaInt64(ctx context.Context, reader *readerHandle, name string) (int64,
 // compactOperation carries the paths and expectations of one staged
 // replacement between its phases.
 type compactOperation struct {
-	options        CompactOptions
-	stagingDir     string
-	opDir          string
-	candidatePath  string
-	backupPath     string
-	installingPath string
-	manifestPath   string
-	manifest       compactManifest
-	verification   archiveVerification
+	options            CompactOptions
+	stagingDir         string
+	opDir              string
+	candidatePath      string
+	backupPath         string
+	installingPath     string
+	manifestPath       string
+	manifest           compactManifest
+	verification       archiveVerification
+	messageIndexStatus string
 }
 
 // Compact builds a verified compact database in staging and installs it with a
@@ -325,12 +333,17 @@ func (db *DB) Compact(ctx context.Context, options CompactOptions) (result Compa
 	if db.writerClosed.Load() {
 		return result, ErrWriterClosed
 	}
+	// A handle may predate a newer writer's schema changes. Refuse before
+	// staging or closing services, even when no index conversion is requested.
+	if err := validateArchiveSchemaCompatibility(ctx, db.rawReader(), "main"); err != nil {
+		return result, err
+	}
 
-	result.Before, err = db.EstimateCompact(ctx)
+	result.Before, err = db.EstimateCompactWithOptions(ctx, options)
 	if err != nil {
 		return result, fmt.Errorf("estimate archive compaction: %w", err)
 	}
-	op, err := db.prepareCompactStaging(options, result.Before)
+	op, err := db.prepareCompactStaging(ctx, options, result.Before)
 	if err != nil {
 		return result, err
 	}
@@ -396,6 +409,7 @@ func (db *DB) Compact(ctx context.Context, options CompactOptions) (result Compa
 		result.BackupPath = op.backupPath
 	}
 	db.cleanupCommittedCompact(op)
+	result.MessageIndexStatus = op.messageIndexStatus
 	return result, nil
 }
 
@@ -403,7 +417,7 @@ func (db *DB) Compact(ctx context.Context, options CompactOptions) (result Compa
 // state from a previous compaction, and checks free space. It creates the
 // per-operation directory only after those gates pass.
 func (db *DB) prepareCompactStaging(
-	options CompactOptions, estimate CompactEstimate,
+	ctx context.Context, options CompactOptions, estimate CompactEstimate,
 ) (*compactOperation, error) {
 	stagingDir := options.StagingDir
 	if stagingDir == "" {
@@ -423,6 +437,11 @@ func (db *DB) prepareCompactStaging(
 	sweepCompactOrphans(stagingDir, "", compactOpDirPrefixFor(db.path))
 	if err := checkCompactSpace(db.path, stagingDir, estimate); err != nil {
 		return nil, err
+	}
+	if options.ConsolidateMessageIndex && estimate.SQLiteTempDir != "" {
+		if err := checkMessageIndexConsolidationSpace(ctx, stagingDir, estimate); err != nil {
+			return nil, err
+		}
 	}
 	opDir, err := os.MkdirTemp(stagingDir, compactOpDirPrefixFor(db.path))
 	if err != nil {
@@ -480,22 +499,40 @@ func (db *DB) buildCompactCandidate(ctx context.Context, op *compactOperation) e
 	if compactTestHookDuringBuild != nil {
 		compactTestHookDuringBuild()
 	}
-	if err := syncFile(op.candidatePath); err != nil {
-		return fmt.Errorf("sync compacted archive: %w", err)
-	}
-	if err := syncDirectory(op.opDir); err != nil {
-		return fmt.Errorf("sync compact staging directory: %w", err)
-	}
 	verification, err := db.captureVerification(ctx)
 	if err != nil {
 		return fmt.Errorf("capture archive verification: %w", err)
+	}
+	// First prove the ordinary VACUUM copy against the unchanged source.
+	if err := verifyArchiveFile(ctx, op.candidatePath, verification); err != nil {
+		return fmt.Errorf("verify compacted archive: %w", err)
+	}
+	if op.options.ConsolidateMessageIndex {
+		originalSchemaHash := verification.SchemaHash
+		var changed bool
+		verification.SchemaHash, changed, err = consolidateCandidateMessageIndex(ctx, op.candidatePath)
+		op.messageIndexStatus = "already_canonical"
+		if changed {
+			op.manifest.Version = compactTransformedManifestVersion
+			op.manifest.OriginalSchemaHash = originalSchemaHash
+			op.messageIndexStatus = "consolidated"
+		}
+		if err != nil {
+			return fmt.Errorf("consolidate message index: %w", err)
+		}
+		if err := verifyArchiveFile(ctx, op.candidatePath, verification); err != nil {
+			return fmt.Errorf("verify consolidated archive: %w", err)
+		}
 	}
 	op.verification = verification
 	op.manifest.ExpectedUserVersion = verification.UserVersion
 	op.manifest.ExpectedSchemaHash = verification.SchemaHash
 	op.manifest.ExpectedCounts = maps.Clone(verification.Counts)
-	if err := verifyArchiveFile(ctx, op.candidatePath, verification); err != nil {
-		return fmt.Errorf("verify compacted archive: %w", err)
+	if err := syncFile(op.candidatePath); err != nil {
+		return fmt.Errorf("sync compacted archive: %w", err)
+	}
+	if err := syncDirectory(op.opDir); err != nil {
+		return fmt.Errorf("sync compact staging directory: %w", err)
 	}
 	compactedHash, compactedBytes, err := sha256File(op.candidatePath)
 	if err != nil {
@@ -1117,6 +1154,12 @@ func removeCompactPath(path, installingPath string, keepBackup bool) error {
 		compactCandidateName,
 		compactCandidateName + "-wal",
 		compactCandidateName + "-shm",
+		compactCandidateName + "-journal",
+		compactCandidateName + ".failed",
+		compactCandidateName + ".consolidated",
+		compactCandidateName + ".consolidated-wal",
+		compactCandidateName + ".consolidated-shm",
+		compactCandidateName + ".consolidated-journal",
 		compactBackupName + "-wal",
 		compactBackupName + "-shm",
 	} {
@@ -1228,7 +1271,7 @@ func RecoverCompactManifest(databasePath string) error {
 		}
 		return fmt.Errorf("read compact recovery manifest: %w", err)
 	}
-	if manifest.Version != compactManifestVersion {
+	if manifest.Version != compactManifestVersion && manifest.Version != compactTransformedManifestVersion {
 		return fmt.Errorf(
 			"unsupported compact recovery manifest version %d in %s",
 			manifest.Version, manifestPath)
@@ -1272,6 +1315,9 @@ func recoverPreparedCompact(
 		return fmt.Errorf(
 			"compact recovery manifest %s is missing integrity metadata; "+
 				"remove it manually after verifying the archive", manifestPath)
+	}
+	if manifest.Version == compactTransformedManifestVersion && manifest.OriginalSchemaHash == "" {
+		return errors.New("transformed compact manifest is missing the original schema fingerprint")
 	}
 	expected := archiveVerification{
 		UserVersion: manifest.ExpectedUserVersion,
@@ -1324,9 +1370,13 @@ func recoverPreparedCompact(
 		}
 	}
 
+	originalExpected := expected
+	if manifest.OriginalSchemaHash != "" {
+		originalExpected.SchemaHash = manifest.OriginalSchemaHash
+	}
 	backupValid, err := compactRecoveryFileState(
 		manifest.OriginalBackupPath, manifest.OriginalSHA256,
-		manifest.OriginalBytes, expected,
+		manifest.OriginalBytes, originalExpected,
 	)
 	if err != nil {
 		return err
@@ -1516,6 +1566,9 @@ func sweepCompactOrphans(stagingDir, keepDir, prefix string) {
 		}
 		for _, name := range []string{
 			compactCandidateName + "-wal", compactCandidateName + "-shm",
+			compactCandidateName + "-journal", compactCandidateName + ".failed",
+			compactCandidateName + ".consolidated", compactCandidateName + ".consolidated-wal",
+			compactCandidateName + ".consolidated-shm", compactCandidateName + ".consolidated-journal",
 			compactBackupName, compactBackupName + "-wal", compactBackupName + "-shm",
 		} {
 			_ = removeIfExists(filepath.Join(dir, name))

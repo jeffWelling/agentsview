@@ -193,6 +193,40 @@ maintenance command. See [Archive content](/docs/configuration/#archive-content)
 for what each policy retains and which source files are needed to recover
 removed content.
 
+### Pack conversation digests
+
+Source builds that include `db pack-digests` can store canonical conversation
+export digests in half as many bytes without removing retained data. Stop the
+daemon or desktop app, back up the archive, then run:
+
+```bash
+agentsview db pack-digests
+```
+
+Only the two conversation digest fields change representation. Message IDs,
+retained tombstones, transcript content, revisions and export cursors stay the
+same. Future writes use the selected format. Empty, uppercase and legacy digest
+text stays exact. Normal startup does not convert existing rows.
+Packing adds decoding work to digest reads; file savings and query costs depend
+on the archive.
+
+The command commits batches of at most 256 rows. If interrupted, the archive
+remains queryable by this build; rerun the command to finish. It reports rows
+changed, not disk space saved. Use `db compact` separately to reclaim file space.
+Keep enough free disk space for SQLite's WAL and for compaction's staged copy;
+batching is not a hard WAL-size cap when another reader pins a snapshot.
+
+Older builds refuse the packed archive. Before downgrading, stop AgentsView and
+run `agentsview db pack-digests --unpack` with a build that supports this format.
+Reversal restores exact TEXT and clears this format fence only after every
+packed value is decoded. Interrupted reversal keeps the fence and can be rerun.
+Plain SQLite tools see BLOBs while packing is enabled; application reads and
+exports return the original digest strings. See the
+[command reference](/docs/commands/#agentsview-db-pack-digests).
+If session references are also enabled, use a combined build and complete
+[both reversals](/docs/commands/#reversing-combined-storage-formats) before
+returning to ordinary AgentsView.
+
 ### Remove archived images
 
 Use the image cleanup control in **Settings > Tool-result images** to preview
