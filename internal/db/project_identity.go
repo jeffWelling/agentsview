@@ -321,6 +321,9 @@ func (db *DB) CopyArchiveIdentityFrom(ctx context.Context, sourcePath string) er
 	defer func() {
 		_, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE identity_source")
 	}()
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "identity_source"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
 
 	type metadataRow struct {
 		value     string

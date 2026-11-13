@@ -2283,6 +2283,9 @@ func probeDatabaseConn(ctx context.Context,
 		}
 	}
 
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "main"); err != nil {
+		return false, false, false, err
+	}
 	schema, err := needsSchemaRepair(ctx, conn)
 	if err != nil {
 		return false, false, false, err

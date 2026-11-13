@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -59,3 +60,23 @@ func compactVolumeName(path string) (string, error) {
 }
 
 func syncDirectory(string) error { return nil }
+
+// The pinned SQLite Windows VFS uses its explicit global directory or
+// GetTempPathW. Do not change the process-global temp directory for maintenance.
+func messageIndexTempDirectory(ctx context.Context, configured string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if configured != "" {
+		return filepath.Abs(configured)
+	}
+	path := make([]uint16, 32768)
+	n, err := windows.GetTempPath(uint32(len(path)), &path[0])
+	if err != nil {
+		return "", err
+	}
+	if n == 0 || n >= uint32(len(path)) {
+		return "", fmt.Errorf("cannot determine SQLite temporary directory")
+	}
+	return filepath.Abs(windows.UTF16ToString(path[:n]))
+}
