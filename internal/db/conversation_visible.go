@@ -23,7 +23,11 @@ func ensureConversationVisibleSchema(ctx context.Context, tx *sql.Tx) error {
 		func(query string, args ...any) (sql.Result, error) { return tx.ExecContext(ctx, query, args...) }, nil); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, conversationVisibleRevisionSQL); err != nil {
+	table, err := conversationPhysicalTableTx(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, conversationSessionRefTriggerSQL(conversationVisibleRevisionSQL, table != "conversation_messages")); err != nil {
 		return err
 	}
 	if !present {
@@ -47,7 +51,7 @@ func conversationCopySelect(ctx context.Context, tx *sql.Tx) string {
 	if oldDBHasColumn(ctx, tx, "conversation_messages", "visible_digest") {
 		return conversationCopyColumns + conversationVisibleCopyColumns
 	}
-	return conversationCopyColumns + `,'',0,'visible_text_unavailable'`
+	return conversationCopyColumns + `,'' AS visible_digest,0 AS visible_text_bytes,'visible_text_unavailable' AS visible_gap`
 }
 
 // Empty mode preserves the existing stored-content wire format and cursors.
