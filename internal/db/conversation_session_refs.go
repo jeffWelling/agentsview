@@ -156,8 +156,9 @@ type ConversationSessionRefsReport struct {
 // one transaction. The caller must own the archive's process-level write lock
 // and close other direct clients. Cancellation before cutover leaves the
 // original authoritative representation intact; a retry restarts staging.
-func (db *DB) SetConversationSessionRefs(ctx context.Context, enabled bool) (ConversationSessionRefsReport, error) {
-	report := ConversationSessionRefsReport{Enabled: enabled}
+func (db *DB) SetConversationSessionRefs(ctx context.Context, enabled bool) (report ConversationSessionRefsReport, err error) {
+	report = ConversationSessionRefsReport{Enabled: enabled}
+	defer func() { err = conversationRefConversionError(ctx, err) }()
 	if db.readOnly {
 		return report, ErrReadOnly
 	}
@@ -251,6 +252,17 @@ func (db *DB) SetConversationSessionRefs(ctx context.Context, enabled bool) (Con
 	}
 	report.Changed = true
 	return report, nil
+}
+
+// A transaction begun with ctx can be rolled back by database/sql before the
+// conversion reaches its next statement or Commit. Preserve that SQL error for
+// diagnostics while keeping canceled conversions recognizable to callers. A
+// successful cutover stays successful even if cancellation arrives afterward.
+func conversationRefConversionError(ctx context.Context, err error) error {
+	if errors.Is(err, sql.ErrTxDone) && ctx.Err() != nil {
+		return errors.Join(err, ctx.Err())
+	}
+	return err
 }
 
 // Explicit copy and conversion boundaries validate physical history. This scan

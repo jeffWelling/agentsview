@@ -3,10 +3,12 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -520,4 +522,40 @@ func TestConversationSessionRefsRefusesMissingMapping(t *testing.T) {
 	require.ErrorContains(t, dest.CopySessionMetadataFrom(ctx, d.Path()), "missing their session mapping")
 	assert.Equal(t, before, sessionRefSnapshot(ctx, t, dest))
 	assert.Equal(t, state, sessionRefArchiveState(ctx, t, dest))
+}
+
+// Exercise our classification boundary directly so both race outcomes remain
+// covered even when database/sql wins the scheduling race only intermittently
+// in TestConversationSessionRefsInterruptedCopy.
+func TestConversationSessionRefsConversionError(t *testing.T) {
+	canceled, cancel := context.WithCancel(t.Context())
+	cancel()
+	expired, stop := context.WithDeadline(t.Context(), time.Unix(0, 0))
+	defer stop()
+	wrapped := fmt.Errorf("commit copied batch: %w", sql.ErrTxDone)
+	storageFailure := errors.New("fixture storage failure")
+	for _, tc := range []struct {
+		name        string
+		deadline    bool
+		input       error
+		wantContext error
+	}{
+		{"canceled rollback", false, sql.ErrTxDone, context.Canceled},
+		{"wrapped rollback", false, wrapped, context.Canceled},
+		{"deadline rollback", true, sql.ErrTxDone, context.DeadlineExceeded},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := canceled
+			if tc.deadline {
+				ctx = expired
+			}
+			err := conversationRefConversionError(ctx, tc.input)
+			require.ErrorIs(t, err, tc.wantContext)
+			assert.ErrorIs(t, err, sql.ErrTxDone)
+			assert.ErrorIs(t, err, tc.input, "retain the underlying error and diagnostic wrapper")
+		})
+	}
+	assert.NoError(t, conversationRefConversionError(canceled, nil), "cancellation after a successful cutover must not report failure")
+	assert.Same(t, wrapped, conversationRefConversionError(t.Context(), wrapped), "an unrelated finished transaction is not cancellation")
+	assert.Same(t, storageFailure, conversationRefConversionError(canceled, storageFailure), "do not reclassify other storage failures")
 }
