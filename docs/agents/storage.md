@@ -274,6 +274,12 @@ including the shared Codex parser. Retained sources that cannot be reparsed keep
 their content and classification gaps; export itself never reads the original
 source.
 
+Startup, maintenance, and archive imports reject known newer schema layouts
+before initialization or copying. A pending preservation rebuild can leave an
+older parser version beside newer schema; that header alone does not establish
+compatibility. Keep these refusals until readers, writers, and copies support
+the newer fields and retained state.
+
 ### Optional conversation digest packing
 
 `db pack-digests` explicitly opts an archive into 32-byte BLOB storage for exact

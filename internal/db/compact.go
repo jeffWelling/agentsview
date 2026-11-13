@@ -325,6 +325,11 @@ func (db *DB) Compact(ctx context.Context, options CompactOptions) (result Compa
 	if db.writerClosed.Load() {
 		return result, ErrWriterClosed
 	}
+	// A handle may predate a newer writer's schema changes. Refuse before
+	// staging or closing services, even when no index conversion is requested.
+	if err := validateArchiveSchemaCompatibility(ctx, db.rawReader(), "main"); err != nil {
+		return result, err
+	}
 
 	result.Before, err = db.EstimateCompact(ctx)
 	if err != nil {

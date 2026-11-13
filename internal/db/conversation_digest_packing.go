@@ -85,6 +85,9 @@ func (db *DB) SetConversationDigestPacking(ctx context.Context, enabled bool) (D
 		return result, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := validateArchiveSchemaCompatibility(ctx, tx, "main"); err != nil {
+		return result, err
+	}
 	mode, err := conversationDigestModeTx(ctx, tx)
 	if err != nil {
 		return result, err
