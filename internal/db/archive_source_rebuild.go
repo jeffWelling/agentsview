@@ -20,6 +20,10 @@ func (d *DB) CopyAttachedArchiveStateFrom(ctx context.Context, source string) er
 		return err
 	}
 	defer func() { _, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE old_db") }()
+
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return err

@@ -470,6 +470,10 @@ func (d *DB) CopySyncStateFrom(ctx context.Context, sourcePath string) error {
 		_, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE old_db")
 	}()
 
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
+
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("beginning sync state copy: %w", err)
@@ -1126,6 +1130,10 @@ func (d *DB) CopyCommitTrailersFrom(ctx context.Context, sourcePath string) erro
 		return fmt.Errorf("attaching source db: %w", err)
 	}
 	defer func() { _, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE old_db") }()
+
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
 	var hasTrailers bool
 	if err := conn.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM old_db.sqlite_master WHERE type='table' AND name='commit_trailers')`).Scan(&hasTrailers); err != nil {
 		return err
@@ -1164,6 +1172,10 @@ func (d *DB) CopyExcludedSessionsFrom(
 			ctx, conn, "DETACH DATABASE old_db",
 		)
 	}()
+
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
 
 	// Only copy if the source has the table (older DBs won't).
 	var tableExists int

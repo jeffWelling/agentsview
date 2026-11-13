@@ -168,6 +168,13 @@ func (db *DB) SetConversationSessionRefs(ctx context.Context, enabled bool) (Con
 	if db.writerClosed.Load() {
 		return report, ErrWriterClosed
 	}
+	writer, err := db.getWriter().current()
+	if err != nil {
+		return report, err
+	}
+	if err := validateArchiveSchemaCompatibility(ctx, writer, "main"); err != nil {
+		return report, err
+	}
 	var active bool
 	if err := db.getWriter().QueryRowContext(ctx, conversationRefsActiveSQL).Scan(&active); err != nil {
 		return report, err

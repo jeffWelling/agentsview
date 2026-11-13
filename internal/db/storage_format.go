@@ -96,6 +96,9 @@ func validateAttachedArchiveFormat(ctx context.Context, q archiveFormatQuerier, 
 	if parserVersion > dataVersion {
 		return fmt.Errorf("source archive uses a newer unsupported data or storage format")
 	}
+	if err := validateArchiveSchemaCompatibility(ctx, q, schema); err != nil {
+		return err
+	}
 	return validateArchiveFormatStateInSchema(ctx, q, schema)
 }
 

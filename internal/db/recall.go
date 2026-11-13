@@ -235,6 +235,10 @@ func (db *DB) CopyRecallEntriesFrom(ctx context.Context, sourcePath string) erro
 		_, _ = execWithoutCancel(ctx, conn, "DETACH DATABASE old_db")
 	}()
 
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "old_db"); err != nil {
+		return fmt.Errorf("validating source archive schema: %w", err)
+	}
+
 	if _, err := prepareCodexSessionIDMap(ctx, conn, false); err != nil {
 		return err
 	}
