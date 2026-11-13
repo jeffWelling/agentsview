@@ -130,6 +130,9 @@ func OpenForMessageIndexConsolidation(ctx context.Context, path string) (*DB, er
 // verbatim, including their names and original SQL.
 func planMessageIndexConsolidation(ctx context.Context, conn *sql.DB) (messageIndexPlan, error) {
 	var plan messageIndexPlan
+	if err := validateArchiveSchemaCompatibility(ctx, conn, "main"); err != nil {
+		return plan, err
+	}
 	if err := validateMessageIndexCJKState(ctx, conn); err != nil {
 		return plan, err
 	}
